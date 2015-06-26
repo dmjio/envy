@@ -19,7 +19,7 @@ getPGPort = do
     (Just port, Just url) ->
       case readMaybe port :: Maybe Int of
         Nothing -> error "PG_PORT isn't a number"
-        Just portNum -> return $ PGConfig portNum (T.pack y)
+        Just portNum -> return $ PGConfig portNum (pack y)
     (Nothing, _) -> error "Couldn't find PG_PORT"    
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
