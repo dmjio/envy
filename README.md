@@ -30,6 +30,7 @@ What if we could apply Aeson's FromJSON / ToJSON pattern to provide a cleaner in
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
@@ -39,15 +40,16 @@ import System.Envy
 import Test.Hspec
 import Data.Text    (Text)
 import Data.Either
+import Data.Typeable
 ------------------------------------------------------------------------------
 -- | Posgtres port
 newtype PGPORT = PGPORT Int
-     deriving (Read, Show, Var)
+     deriving (Read, Show, Var, Typeable)
 
 ------------------------------------------------------------------------------
 -- | Postgres URL
 newtype PGURL = PGURL String
-     deriving (Read, Show, Var, IsString)
+     deriving (Read, Show, Var, IsString, Typeable)
 
 ------------------------------------------------------------------------------
 -- | Posgtres config

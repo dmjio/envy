@@ -3,6 +3,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
@@ -27,19 +28,19 @@ import           Test.QuickCheck.Instances
 ------------------------------------------------------------------------------
 -- | Posgtres port
 newtype PGPORT = PGPORT Int
-     deriving (Read, Show, Var, Eq)
+     deriving (Read, Show, Var, Eq, Typeable)
 
 ------------------------------------------------------------------------------
 -- | Postgres URL
 newtype PGURL = PGURL String
-     deriving (Read, Show, Var, IsString, Eq)
+     deriving (Read, Show, Var, IsString, Eq, Typeable)
 
 ------------------------------------------------------------------------------
 -- | Posgtres config
 data PGConfig = PGConfig {
     pgPort :: PGPORT -- ^ Port 
   , pgURL  :: PGURL  -- ^ URL
-  } deriving (Show, Read, Eq)
+  } deriving (Show, Read, Eq, Typeable)
 
 ------------------------------------------------------------------------------
 -- | Instances
