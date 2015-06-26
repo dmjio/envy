@@ -24,10 +24,7 @@ getPGPort = do
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
 ```
-
-What if we could apply Aeson's FromJSON / ToJSON pattern to solve this problem?
-
-Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
+What if we could apply Aeson's FromJSON / ToJSON pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
 
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
@@ -84,7 +81,6 @@ main = do
   -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
 ```
 
-Note: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if and `=` is present
-in an environment. `envy` catches these synchronous exceptions and delivers them
+*Note*: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if a `=` is present in an environment. `envy` catches these synchronous exceptions and delivers them
 purely to the end user.
 

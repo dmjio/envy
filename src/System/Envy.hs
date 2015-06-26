@@ -23,6 +23,7 @@ module System.Envy
         -- * Functions
        , loadEnv
        , parseEnv
+       , printEnv
        , setEnvironment
        , unsetEnvironment
        , (.=)
@@ -39,7 +40,6 @@ import           Text.Read (readMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Map as M
-import           System.IO.Unsafe
 import           Data.Text (Text)
 import           Data.Word
 import           Data.Int
@@ -48,8 +48,8 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
--- | Environemnt Type
-newtype Env = Env (M.Map String String)
+-- | Environment
+newtype Env = Env { env :: M.Map String String }
   deriving (Show)
 
 ------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ newtype Parser a = Parser {
     } 
 
 ------------------------------------------------------------------------------
--- | Parser `Monad` Instance
+-- | Parser `Monad` instance
 instance Monad Parser where
     m >>= g = Parser $ \kf ks -> let ks' a = runParser (g a) kf ks
                                  in runParser m kf ks'
@@ -81,14 +81,14 @@ instance Monad Parser where
     {-# INLINE fail #-}
 
 ------------------------------------------------------------------------------
--- | Parser `Functor` Instance
+-- | Parser `Functor` instance
 instance Functor Parser where
     fmap f m = Parser $ \kf ks -> let ks' a = ks (f a)
                                   in runParser m kf ks'
     {-# INLINE fmap #-}
 
 ------------------------------------------------------------------------------
--- | Parser `Applicative` Instance
+-- | Parser `Applicative` instance
 instance Applicative Parser where
     pure  = return
     {-# INLINE pure #-}
@@ -96,7 +96,7 @@ instance Applicative Parser where
     {-# INLINE (<*>) #-}
 
 ------------------------------------------------------------------------------
--- | Parser `Alternative` Instance
+-- | Parser `Alternative` instance
 instance Alternative Parser where
     empty = fail "empty"
     {-# INLINE empty #-}
@@ -129,7 +129,7 @@ apP d e = do
 {-# INLINE apP #-}
 
 ------------------------------------------------------------------------------
--- | Infix environemnt variable getter
+-- | Infix environment variable getter
 getE
   :: forall a. (Typeable a, Var a)
   => String
@@ -144,7 +144,7 @@ getE k (Env m) = do
                  Just x -> return x
 
 ------------------------------------------------------------------------------
--- | Infix environemnt variable getter
+-- | Infix environment variable getter
 (.:) :: forall a. (Typeable a, Var a)
   => String
   -> Env
@@ -152,7 +152,7 @@ getE k (Env m) = do
 (.:) = getE
 
 ------------------------------------------------------------------------------
--- | Infix environemnt variable setter
+-- | Infix environment variable setter
 (.=) :: Var a
      => String
      -> a
@@ -173,7 +173,7 @@ class Show a => ToEnv a where
   toEnv :: a -> [(String, String)]
 
 ------------------------------------------------------------------------------
--- | Class for converting to and from an environment variable
+-- | Class for converting to / from an environment variable
 class (Read a, Show a) => Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
@@ -262,26 +262,24 @@ loadEnv = Env . M.fromList <$> getEnvironment
 ------------------------------------------------------------------------------
 -- | Environment retrieval
 parseEnv :: FromEnv a => IO (Either String a)
-parseEnv = do
-   ev <- loadEnv
-   return $ runParser (fromEnv ev) Left Right
+parseEnv = loadEnv >>= \ev -> return $ runParser (fromEnv ev) Left Right
 
 ------------------------------------------------------------------------------
--- | Set Environment nfrom a ToEnv instance
+-- | Set environment from a ToEnv constrained type
 setEnvironment :: ToEnv a => a -> IO (Either String ())
 setEnvironment x = do
   result <- try $ mapM_ (uncurry setEnv) (toEnv x)
   return $ case result of
-   Left (ex :: SomeException) -> Left (show ex)
+   Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
 
 ------------------------------------------------------------------------------
--- | Set Environment from a ToEnv instance
+-- | Unset Environment from a ToEnv constrained type
 unsetEnvironment :: ToEnv a => a -> IO (Either String ())
 unsetEnvironment x = do
-  result <- try $ (mapM_ unsetEnv . map fst . toEnv $ x)
+  result <- try $ mapM_ unsetEnv $ map fst (toEnv x)
   return $ case result of
-   Left (ex :: SomeException) -> Left (show ex)
+   Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
 
 ------------------------------------------------------------------------------
