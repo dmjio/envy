@@ -1,7 +1,16 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE RankNTypes          #-}
+------------------------------------------------------------------------------
+-- |
+-- Module      : System.Envy
+-- Copyright   : (c) David Johnson 2015
+-- Maintainer  : djohnson.m@ngmail.com
+-- Stability   : experimental
+-- Portability : POSIX
+-- 
 ------------------------------------------------------------------------------
 module System.Envy
        ( -- * Types
@@ -10,6 +19,7 @@ module System.Envy
         -- * Classes
        , FromEnv (..)
        , ToEnv   (..)
+       , Var     (..)
         -- * Functions
        , loadEnv
        , parseEnv
@@ -19,18 +29,22 @@ module System.Envy
        , (.:)
        ) where
 ------------------------------------------------------------------------------
+import           Control.Exception
+import           Data.Time
 import           Control.Applicative
 import           Control.Monad
 import           Data.Typeable
 import           System.Environment
-import           Control.Monad.Trans.Cont
-import           Control.Monad.Trans.Class
-import           Control.Monad.IO.Class 
 import           Text.Read (readMaybe)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Map as M
 import           System.IO.Unsafe
 import           Data.Text (Text)
+import           Data.Word
+import           Data.Int
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -94,8 +108,9 @@ instance Alternative Parser where
 instance MonadPlus Parser where
     mzero = fail "mzero"
     {-# INLINE mzero #-}
-    mplus a b = Parser $ \kf ks -> let kf' _ = runParser b kf ks
-                                   in runParser a kf' ks
+    mplus a b = Parser $ \kf ks ->
+      let kf' _ = runParser b kf ks
+      in runParser a kf' ks
     {-# INLINE mplus #-}
 
 instance Monoid (Parser a) where
@@ -116,21 +131,21 @@ apP d e = do
 ------------------------------------------------------------------------------
 -- | Infix environemnt variable getter
 getE
-  :: forall a. (Typeable a, Read a)
+  :: forall a. (Typeable a, Var a)
   => String
   -> Env
   -> Parser a
 getE k (Env m) = do
   case M.lookup k m of
     Nothing -> fail $ "Variable not found for: " ++ k
-    Just dv -> case readMaybe dv :: Maybe a of
+    Just dv -> case fromVar dv :: Maybe a of
                  Nothing -> fail $ "Parse failure: field <name> is not of type: "
                               ++ show (typeOf dv)
                  Just x -> return x
 
 ------------------------------------------------------------------------------
 -- | Infix environemnt variable getter
-(.:) :: forall a. (Typeable a, Read a)
+(.:) :: forall a. (Typeable a, Var a)
   => String
   -> Env
   -> Parser a
@@ -138,11 +153,11 @@ getE k (Env m) = do
 
 ------------------------------------------------------------------------------
 -- | Infix environemnt variable setter
-(.=) :: Show a
+(.=) :: Var a
      => String
      -> a
      -> (String, String)
-(.=) x y = (x, show y)
+(.=) x y = (x, toVar y)
 
 ------------------------------------------------------------------------------
 -- | FromEnv Typeclass
@@ -158,6 +173,88 @@ class Show a => ToEnv a where
   toEnv :: a -> [(String, String)]
 
 ------------------------------------------------------------------------------
+-- | Class for converting to and from an environment variable
+class (Read a, Show a) => Var a where
+  toVar   :: a -> String
+  fromVar :: String -> Maybe a
+
+instance Var Text where
+  toVar = T.unpack
+  fromVar = Just . T.pack
+
+instance Var TL.Text where
+  toVar = TL.unpack
+  fromVar = Just . TL.pack 
+
+instance Var BL8.ByteString where
+  toVar = BL8.unpack
+  fromVar = Just . BL8.pack
+
+instance Var B8.ByteString where
+  toVar = B8.unpack
+  fromVar = Just . B8.pack
+
+instance Var Int where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Int8 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Int16 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Int32 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Int64 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Integer where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var UTCTime where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Day where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Word8 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Bool where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Double where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Word16 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Word32 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var Word64 where
+  toVar = show
+  fromVar = readMaybe 
+
+instance Var String where
+  toVar = id
+  fromVar = Just 
+
+------------------------------------------------------------------------------
 -- | Environment retrieval
 loadEnv :: IO Env
 loadEnv = Env . M.fromList <$> getEnvironment
@@ -171,13 +268,21 @@ parseEnv = do
 
 ------------------------------------------------------------------------------
 -- | Set Environment nfrom a ToEnv instance
-setEnvironment :: ToEnv a => a -> IO ()
-setEnvironment = mapM_ (uncurry setEnv) . toEnv 
+setEnvironment :: ToEnv a => a -> IO (Either String ())
+setEnvironment x = do
+  result <- try $ mapM_ (uncurry setEnv) (toEnv x)
+  return $ case result of
+   Left (ex :: SomeException) -> Left (show ex)
+   Right () -> Right ()
 
 ------------------------------------------------------------------------------
 -- | Set Environment from a ToEnv instance
-unsetEnvironment :: ToEnv a => a -> IO ()
-unsetEnvironment = mapM_ unsetEnv . map fst . toEnv 
+unsetEnvironment :: ToEnv a => a -> IO (Either String ())
+unsetEnvironment x = do
+  result <- try $ (mapM_ unsetEnv . map fst . toEnv $ x)
+  return $ case result of
+   Left (ex :: SomeException) -> Left (show ex)
+   Right () -> Right ()
 
 ------------------------------------------------------------------------------
 -- | Print Env

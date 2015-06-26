@@ -27,6 +27,8 @@ getPGPort = do
 
 What if we could apply Aeson's FromJSON / ToJSON pattern to solve this problem?
 
+Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
+
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -41,21 +43,31 @@ import Test.Hspec
 import Data.Text    (Text)
 import Data.Either
 ------------------------------------------------------------------------------
--- | PGConfig -- Hypothetical postgresql config
-data PGConfig = PGConfig {
-    pgPort :: Int -- ^ Port 
-  , pgURL  :: Text  -- ^ URL
-  } deriving (Show, Read, Eq)
+-- | Posgtres port
+newtype PGPORT = PGPORT Int
+     deriving (Read, Show, Var)
 
 ------------------------------------------------------------------------------
--- | FromEnv Instances
+-- | Postgres URL
+newtype PGURL = PGURL String
+     deriving (Read, Show, Var, IsString)
+
+------------------------------------------------------------------------------
+-- | Posgtres config
+data PGConfig = PGConfig {
+    pgPort :: PGPORT -- ^ Port 
+  , pgURL  :: PGURL  -- ^ URL
+  } deriving (Show, Read)
+
+------------------------------------------------------------------------------
+-- | Instances
 instance FromEnv PGConfig where
   fromEnv env = do
     PGConfig <$> "PG_PORT" .: env 
              <*> "PG_URL"  .: env
 
 ------------------------------------------------------------------------------
--- | ToEnv Instances
+-- | To Environment Instances
 instance ToEnv PGConfig where
   toEnv PGConfig{..} =
        [ "PG_PORT" .= pgPort
@@ -66,9 +78,13 @@ instance ToEnv PGConfig where
 -- | Main
 main :: IO ()
 main = do 
-  let pgConfig = PGConfig 5432 "localhost" 
-  setEnvironment pgConfig
+  setEnvironment $ PGConfig 5432 "localhost" 
   print =<< do parseEnv :: IO (Either String PGConfig) 
   -- result: Right (PGConfig {pgPort = 5432, pgURL = "localhost"})
-  -- unsetEnvironment pgConfig -- remove when done
+  -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
 ```
+
+Note: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if and `=` is present
+in an environment. `envy` catches these synchronous exceptions and delivers them
+purely to the end user.
+
