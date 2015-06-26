@@ -1,4 +1,4 @@
-envy
+envy [![Circle CI](https://circleci.com/gh/dmjio/envy.svg?style=svg)](https://circleci.com/gh/dmjio/envy)
 ===================
 Let's face it, dealing with environment variables in Haskell isn't that satisfying.
 
