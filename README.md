@@ -43,8 +43,8 @@ import Data.Either
 ------------------------------------------------------------------------------
 -- | PGConfig -- hyopthetical postgresql config
 data PGConfig = PGConfig {
-    pgPort :: Text -- ^ Port 
-  , pgURL  :: Int  -- ^ URL
+    pgPort :: Int -- ^ Port 
+  , pgURL  :: Text  -- ^ URL
   } deriving (Show, Read, Eq)
 
 ------------------------------------------------------------------------------
@@ -66,9 +66,9 @@ instance ToEnv PGConfig where
 -- | Start tests
 main :: IO ()
 main = do 
-  let pgConfig = PGConfig "localhost" 5432
+  let pgConfig = PGConfig 5432 "localhost" 
   setEnvironment pgConfig
   print =<< do parseEnv :: IO (Either String PGConfig) 
-  -- result: Right (PGConfig {pgPort = "localhost", pgURL = 5432})
+  -- result: Right (PGConfig {pgPort = 5432, pgURL = "localhost"})
   -- unsetEnvironment pgConfig -- remove when done
 ```
