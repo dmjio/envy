@@ -20,6 +20,7 @@ import qualified Data.Text.Lazy as LT
 import           Data.Word
 import           Data.Int
 import           Data.String
+import           Data.Typeable
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import           Test.QuickCheck.Instances
