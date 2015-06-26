@@ -66,8 +66,9 @@ instance ToEnv PGConfig where
 -- | Start tests
 main :: IO ()
 main = do 
-  let pgConfig = PGConfig 2345 "localhost"
+  let pgConfig = PGConfig "localhost" 5432
   setEnvironment pgConfig
-  print =<< do parseEnv :: IO (Either String PGConfig)
+  print =<< do parseEnv :: IO (Either String PGConfig) 
+  -- result: Right (PGConfig {pgPort = "localhost", pgURL = 5432})
   -- unsetEnvironment pgConfig -- remove when done
 ```

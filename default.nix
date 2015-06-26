@@ -1,3 +1,3 @@
 { nixpkgs ? import <nixpkgs> {} }:
-            nixpkgs.pkgs.haskellPackages.callPackage ./env.nix
+            nixpkgs.pkgs.haskellPackages.callPackage ./envy.nix
            { }
