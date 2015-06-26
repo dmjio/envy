@@ -1,7 +1,5 @@
 envy
 ===================
-Aeson-style continuation-based parsing for dealing with environment variables.
-
 Let's face it, dealing with environment variables in Haskell isn't that satisfying.
 
 ```haskell
