@@ -41,21 +41,21 @@ import Test.Hspec
 import Data.Text    (Text)
 import Data.Either
 ------------------------------------------------------------------------------
--- | PGConfig -- hyopthetical postgresql config
+-- | PGConfig -- Hypothetical postgresql config
 data PGConfig = PGConfig {
     pgPort :: Int -- ^ Port 
   , pgURL  :: Text  -- ^ URL
   } deriving (Show, Read, Eq)
 
 ------------------------------------------------------------------------------
--- | Instances
+-- | FromEnv Instances
 instance FromEnv PGConfig where
   fromEnv env = do
     PGConfig <$> "PG_PORT" .: env 
              <*> "PG_URL"  .: env
 
 ------------------------------------------------------------------------------
--- | To Environment Instances
+-- | ToEnv Instances
 instance ToEnv PGConfig where
   toEnv PGConfig{..} =
        [ "PG_PORT" .= pgPort
@@ -63,7 +63,7 @@ instance ToEnv PGConfig where
        ]
 
 ------------------------------------------------------------------------------
--- | Start tests
+-- | Main
 main :: IO ()
 main = do 
   let pgConfig = PGConfig 5432 "localhost" 
