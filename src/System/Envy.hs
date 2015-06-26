@@ -32,6 +32,7 @@ module System.Envy
 ------------------------------------------------------------------------------
 import           Control.Exception
 import           Data.Time
+import           Data.Monoid
 import           Control.Applicative
 import           Control.Monad
 import           Data.Typeable
