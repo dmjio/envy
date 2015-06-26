@@ -8,6 +8,7 @@ module Main ( main ) where
 ------------------------------------------------------------------------------
 import           Data.Time
 import           System.Environment
+import           Control.Applicative
 import           Control.Monad
 import           System.Envy
 import           Test.Hspec
