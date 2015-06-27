@@ -6,6 +6,7 @@
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
+import           Control.Applicative
 import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Error
