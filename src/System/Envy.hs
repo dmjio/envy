@@ -161,7 +161,7 @@ data EnvList a = EnvList [EnvVar] deriving (Show)
 
 ------------------------------------------------------------------------------
 -- | smart constructor, Environment creation helper
-makeEnv :: forall a. [EnvVar] -> EnvList a
+makeEnv :: ToEnv a => [EnvVar] -> EnvList a
 makeEnv = EnvList
 
 ------------------------------------------------------------------------------
