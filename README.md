@@ -24,18 +24,13 @@ getPGPort = do
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
 ```
-What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
-
-The `Var` typeclass is simply:
+What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment. The `Var` typeclass is simply:
 ```haskell
 class (Read a, Show a) => Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 ```
-With instances for most primitive types already supported, making the class easily deriveable.
-
-The `FromEnv` typeclass provides a parser that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser! 
-
+With instances for most primitive types already supported (`Word8` - `Word32`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, error handling and environment fetching. 
 
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
@@ -65,7 +60,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text as T
-import           Data.Text    (Text)
+import Data.Text    (Text)
 import Database.PostgreSQL.Simple
 ------------------------------------------------------------------------------
 -- | Posgtres Port
@@ -141,7 +136,7 @@ main :: IO ()
 main = do
    setEnvironment (toEnv :: EnvList PGConfig)
    result <- decodeEnv :: IO (Either String PGConfig)
-  -- result: Right (PGConfig {pgPort = 5432, pgURL = "localhost"})
+   print result -- "<PGConfig>", connection pools now initialized from environment set values
   -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
 ```
 
