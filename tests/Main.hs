@@ -12,8 +12,11 @@ import           System.Environment
 import           Control.Applicative
 import           Control.Monad
 import           System.Envy
+import           Data.Either
 import           Test.Hspec
 import           Test.QuickCheck
+import           Control.Monad.Reader
+import           Control.Monad.Except
 import qualified Data.Text as T
 import           Data.Text    (Text)
 import qualified Data.Text.Lazy as LT
@@ -47,8 +50,11 @@ data PGConfig = PGConfig {
 -- | Instances
 instance FromEnv PGConfig where
   fromEnv env = do
-    PGConfig <$> "PG_PORT" .: env 
-             <*> "PG_URL"  .: env
+    PGConfig  <$> "PG_PORT2" .: env 
+              <*> "PG_URL"   .: env
+              <|>
+     PGConfig <$> "PG_PORT"  .: env 
+              <*> "PG_URL"   .: env
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
@@ -97,6 +103,6 @@ main = hspec $ do
   describe "Can set to and from environment" $ do
     it "Should set environment" $ do
       setEnvironment pgConfig
-      Right pg' <- parseEnv :: IO (Either String PGConfig)
-      pg' `shouldBe` pgConfig
+      pg' <- parseEnv :: IO (Either String PGConfig)
+      pg' `shouldSatisfy` isRight
 

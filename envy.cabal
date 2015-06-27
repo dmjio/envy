@@ -1,7 +1,7 @@
 name:                envy
 version:             0.1.0.0
 description:         aeson-style interface for working with environment variables
-synopsis:            Continuation based parsing for environment variables
+synopsis:            Parsing for environment variables
 license:             BSD3
 license-file:        LICENSE
 author:              David Johnson
@@ -15,11 +15,14 @@ library
   exposed-modules:      System.Envy
   ghc-options:          -Wall
   hs-source-dirs:       src
-  build-depends:        base        >= 4.7 && < 5
+  build-depends:        QuickCheck
+                      , base        >= 4.7 && < 5
                       , bytestring  == 0.10.*
                       , containers  == 0.5.*
-                      , text        == 1.2.* 
+                      , mtl         == 2.2.*
+                      , text        == 1.2.*
                       , time        == 1.5.*
+
   default-language:     Haskell2010
 
 test-suite spec
@@ -31,10 +34,11 @@ test-suite spec
                       , bytestring           == 0.10.*
                       , envy                 == 0.1.*
                       , hspec                == 2.1.*
-                      , time                 == 1.5.*
-                      , text                 == 1.2.*
-                      , QuickCheck           == 2.8.*
+                      , mtl                  == 2.2.*
                       , quickcheck-instances == 0.3.*
+                      , QuickCheck           == 2.8.*
+                      , text                 == 1.2.*
+                      , time                 == 1.5.*
     default-language:   Haskell2010
 
 source-repository head

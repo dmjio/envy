@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE RecordWildCards     #-}
@@ -15,7 +16,7 @@
 module System.Envy
        ( -- * Types
          Env     (..)
-       , Parser  (..)
+       -- , Parser  (..)
         -- * Classes
        , FromEnv (..)
        , ToEnv   (..)
@@ -30,10 +31,13 @@ module System.Envy
        , (.:)
        ) where
 ------------------------------------------------------------------------------
+import           Control.Applicative
+import           Control.Monad.Reader
+import           Control.Monad.Except
+import           Control.Monad.Identity
 import           Control.Exception
 import           Data.Time
 import           Data.Monoid
-import           Control.Applicative
 import           Control.Monad
 import           Data.Typeable
 import           System.Environment
@@ -54,95 +58,33 @@ newtype Env = Env { env :: M.Map String String }
   deriving (Show)
 
 ------------------------------------------------------------------------------
--- | Failure continuation.
-type Failure f r   = String -> f r
+-- | Parser
+newtype Parser a = Parser { runParser :: ReaderT Env (ExceptT String IO) a }
+  deriving ( Functor, Monad, Applicative, MonadReader Env, MonadError String
+           , MonadIO, Alternative, MonadPlus )
 
 ------------------------------------------------------------------------------
--- | Success continuation.
-type Success a f r = a -> f r
-
-------------------------------------------------------------------------------
--- | A continuation-based parser type.
-newtype Parser a = Parser {
-      runParser :: forall f r.
-                   Failure f r
-                -> Success a f r
-                -> f r
-    } 
-
-------------------------------------------------------------------------------
--- | Parser `Monad` instance
-instance Monad Parser where
-    m >>= g = Parser $ \kf ks -> let ks' a = runParser (g a) kf ks
-                                 in runParser m kf ks'
-    {-# INLINE (>>=) #-}
-    return a = Parser $ \_kf ks -> ks a
-    {-# INLINE return #-}
-    fail msg = Parser $ \kf _ks -> kf msg
-    {-# INLINE fail #-}
-
-------------------------------------------------------------------------------
--- | Parser `Functor` instance
-instance Functor Parser where
-    fmap f m = Parser $ \kf ks -> let ks' a = ks (f a)
-                                  in runParser m kf ks'
-    {-# INLINE fmap #-}
-
-------------------------------------------------------------------------------
--- | Parser `Applicative` instance
-instance Applicative Parser where
-    pure  = return
-    {-# INLINE pure #-}
-    (<*>) = apP
-    {-# INLINE (<*>) #-}
-
-------------------------------------------------------------------------------
--- | Parser `Alternative` instance
-instance Alternative Parser where
-    empty = fail "empty"
-    {-# INLINE empty #-}
-    (<|>) = mplus
-    {-# INLINE (<|>) #-}
-
-------------------------------------------------------------------------------
--- | Parser `MonadPlus` Instance
-instance MonadPlus Parser where
-    mzero = fail "mzero"
-    {-# INLINE mzero #-}
-    mplus a b = Parser $ \kf ks ->
-      let kf' _ = runParser b kf ks
-      in runParser a kf' ks
-    {-# INLINE mplus #-}
-
-instance Monoid (Parser a) where
-    mempty  = fail "mempty"
-    {-# INLINE mempty #-}
-    mappend = mplus
-    {-# INLINE mappend #-}
-
-------------------------------------------------------------------------------
--- | Applicative Parser helper
-apP :: Parser (a -> b) -> Parser a -> Parser b
-apP d e = do
-  b <- d
-  a <- e
-  return (b a)
-{-# INLINE apP #-}
+-- | Execute Parser
+evalParser :: FromEnv a => Parser a -> IO (Either String a)
+evalParser stack = do
+  env <- liftIO loadEnv
+  runExceptT $ runReaderT (runParser stack) env
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable getter
 getE
-  :: forall a. (Typeable a, Var a)
+  :: forall a . (Typeable a, Var a)
   => String
   -> Env
   -> Parser a
 getE k (Env m) = do
   case M.lookup k m of
-    Nothing -> fail $ "Variable not found for: " ++ k
-    Just dv -> case fromVar dv :: Maybe a of
-                 Nothing -> fail $ "Parse failure: field <name> is not of type: "
-                              ++ show (typeOf dv)
-                 Just x -> return x
+    Nothing -> throwError $ "Variable not found for: " ++ k
+    Just dv ->
+      case fromVar dv :: Maybe a of
+        Nothing -> throwError $ "Parse failure: field <name> is not of type: "
+                     ++ show (typeOf dv)
+        Just x -> return x
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable getter
@@ -162,7 +104,8 @@ getE k (Env m) = do
 
 ------------------------------------------------------------------------------
 -- | FromEnv Typeclass
-class FromEnv a where fromEnv :: Env -> Parser a
+class FromEnv a where
+  fromEnv :: Env -> Parser a
 
 ------------------------------------------------------------------------------
 -- | Identity instance
@@ -263,7 +206,7 @@ loadEnv = Env . M.fromList <$> getEnvironment
 ------------------------------------------------------------------------------
 -- | Environment retrieval
 parseEnv :: FromEnv a => IO (Either String a)
-parseEnv = loadEnv >>= \ev -> return $ runParser (fromEnv ev) Left Right
+parseEnv = loadEnv >>= evalParser . fromEnv
 
 ------------------------------------------------------------------------------
 -- | Set environment from a ToEnv constrained type
