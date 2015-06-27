@@ -78,7 +78,7 @@ instance ToEnv PGConfig where
 main :: IO ()
 main = do 
   setEnvironment $ PGConfig 5432 "localhost" 
-  print =<< do parseEnv :: IO (Either String PGConfig) 
+  print =<< do decodeEnv :: IO (Either String PGConfig) 
   -- result: Right (PGConfig {pgPort = 5432, pgURL = "localhost"})
   -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
 ```
