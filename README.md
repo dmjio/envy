@@ -24,7 +24,18 @@ getPGPort = do
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
 ```
-What if we could apply Aeson's FromJSON / ToJSON pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
+What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment.
+
+The `Var` typeclass is simply:
+```haskell
+class (Read a, Show a) => Var a where
+  toVar   :: a -> String
+  fromVar :: String -> Maybe a
+```
+With instances for most primitive types already supported, making the class easily deriveable.
+
+The `FromEnv` typeclass provides a parser that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser! 
+
 
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
@@ -40,10 +51,25 @@ import System.Envy
 import Test.Hspec
 import Data.Text    (Text)
 import Data.Either
+import Data.Word
+import Data.String
+import Control.Exception
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Error
 import Data.Typeable
+import Test.QuickCheck
+import Test.QuickCheck.Instances
+import Data.Int
+import Data.Time
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text as T
+import           Data.Text    (Text)
+import Database.PostgreSQL.Simple
 ------------------------------------------------------------------------------
--- | Posgtres port
-newtype PGPORT = PGPORT Int
+-- | Posgtres Port
+newtype PGPORT = PGPORT Word16
      deriving (Read, Show, Var, Typeable, Num)
 
 ------------------------------------------------------------------------------
@@ -52,37 +78,72 @@ newtype PGURL = PGURL String
      deriving (Read, Show, Var, IsString, Typeable)
 
 ------------------------------------------------------------------------------
--- | Posgtres config
-data PGConfig = PGConfig {
-    pgPort :: PGPORT -- ^ Port 
-  , pgURL  :: PGURL  -- ^ URL
-  } deriving (Show, Read)
+-- | Postgres Host
+newtype PGHOST = PGHOST String
+     deriving (Read, Show, Var, IsString, Typeable)
 
 ------------------------------------------------------------------------------
--- | FromEnv Instances, supports popular aeson combinators
+-- | Postgres DB
+newtype PGDB = PGDB String
+     deriving (Read, Show, Var, IsString, Typeable)
+
+------------------------------------------------------------------------------
+-- | Postgres User
+newtype PGUSER = PGUSER String
+     deriving (Read, Show, Var, IsString, Typeable)
+
+------------------------------------------------------------------------------
+-- | Postgres Password
+newtype PGPASS = PGPASS String
+     deriving (Read, Show, Var, IsString, Typeable)
+
+------------------------------------------------------------------------------
+-- | Posgtres config
+data PGConfig = PGConfig {
+    pgConnectInfo :: ConnectInfo -- ^ Connnection Info
+  , pgConnection  :: Connection  -- ^ Connection Pool 
+  } 
+
+------------------------------------------------------------------------------
+-- | Custom show instance
+instance Show PGConfig where
+  show PGConfig {..} = "<PGConfig>"
+
+------------------------------------------------------------------------------
+-- | FromEnv Instances, supports popular aeson combinators *and* IO
+-- for dealing with connection pools
 instance FromEnv PGConfig where
   fromEnv env = do
-    PGConfig  <$> "PG_PORT-OOPS" .:? env .!= (5432 :: PGPORT)
-              <*> "PG_URL"   .: env
+    conInfo <- ConnectInfo <$> "PG_HOST" .:? env .!= ("localhost" :: String)
+                           <*> "PG_PORT" .: env 
+                           <*> "PG_USER" .: env 
+                           <*> "PG_PASS" .: env 
+                           <*> "PG_DB"   .: env 
+    result <- liftIO $ try (connect conInfo)
+    case result of
+      Left (err :: IOException) -> throwError (show err)
+      Right con -> return $ PGConfig conInfo con
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
 instance ToEnv PGConfig where
-  toEnv PGConfig{..} =
-       [ "PG_PORT" .= pgPort
-       , "PG_URL"  .= pgURL
+  toEnv = makeEnv 
+       [ "PG_HOST" .= PGHOST "localhost"
+       , "PG_PORT" .= PGPORT 5432
+       , "PG_USER" .= PGUSER "user"
+       , "PG_PASS" .= PGPASS "pass"
+       , "PG_DB"   .= PGDB "db"
        ]
 
 ------------------------------------------------------------------------------
--- | Main
+-- | Example
 main :: IO ()
-main = do 
-  setEnvironment $ PGConfig 5432 "localhost" 
-  print =<< do decodeEnv :: IO (Either String PGConfig) 
+main = do
+   setEnvironment (toEnv :: EnvList PGConfig)
+   result <- decodeEnv :: IO (Either String PGConfig)
   -- result: Right (PGConfig {pgPort = 5432, pgURL = "localhost"})
   -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
 ```
 
 *Note*: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if a `=` is present in an environment. `envy` catches these synchronous exceptions and delivers them
 purely to the end user.
-

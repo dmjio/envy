@@ -27,6 +27,8 @@ module System.Envy
        , showEnv
        , setEnvironment
        , unsetEnvironment
+       , makeEnv 
+       , EnvList
        , (.=)
        , (.:)
        , (.:?)
@@ -151,7 +153,16 @@ instance FromEnv Env where fromEnv = return
 ------------------------------------------------------------------------------
 -- | ToEnv Typeclass
 class Show a => ToEnv a where
-  toEnv :: a -> [EnvVar]
+  toEnv :: EnvList a
+
+------------------------------------------------------------------------------
+-- | EnvList type w/ phanton
+data EnvList a = EnvList [EnvVar] deriving (Show)
+
+------------------------------------------------------------------------------
+-- | smart constructor, Environment creation helper
+makeEnv :: forall a. [EnvVar] -> EnvList a
+makeEnv = EnvList
 
 ------------------------------------------------------------------------------
 -- | Class for converting to / from an environment variable
@@ -255,18 +266,18 @@ decode = fmap f $ loadEnv >>= evalParser . fromEnv
 
 ------------------------------------------------------------------------------
 -- | Set environment via a ToEnv constrained type
-setEnvironment :: ToEnv a => a -> IO (Either String ())
-setEnvironment x = do
-  result <- try $ mapM_ (uncurry setEnv) (map getEnvVar $ toEnv x)
+setEnvironment :: EnvList a -> IO (Either String ())
+setEnvironment (EnvList xs) = do
+  result <- try $ mapM_ (uncurry setEnv) (map getEnvVar xs)
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
 
 ------------------------------------------------------------------------------
 -- | Unset Environment from a ToEnv constrained type
-unsetEnvironment :: ToEnv a => a -> IO (Either String ())
-unsetEnvironment x = do
-  result <- try $ mapM_ unsetEnv $ map fst (map getEnvVar $ toEnv x)
+unsetEnvironment :: EnvList a -> IO (Either String ())
+unsetEnvironment (EnvList xs) = do
+  result <- try $ mapM_ unsetEnv $ map fst (map getEnvVar xs)
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
