@@ -44,7 +44,7 @@ import Data.Typeable
 ------------------------------------------------------------------------------
 -- | Posgtres port
 newtype PGPORT = PGPORT Int
-     deriving (Read, Show, Var, Typeable)
+     deriving (Read, Show, Var, Typeable, Num)
 
 ------------------------------------------------------------------------------
 -- | Postgres URL
@@ -59,11 +59,11 @@ data PGConfig = PGConfig {
   } deriving (Show, Read)
 
 ------------------------------------------------------------------------------
--- | Instances
+-- | FromEnv Instances, supports popular aeson combinators
 instance FromEnv PGConfig where
   fromEnv env = do
-    PGConfig <$> "PG_PORT" .: env 
-             <*> "PG_URL"  .: env
+    PGConfig  <$> "PG_PORT-OOPS" .:? env .!= (5432 :: PGPORT)
+              <*> "PG_URL"   .: env
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances

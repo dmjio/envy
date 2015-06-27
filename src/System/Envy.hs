@@ -16,19 +16,21 @@
 module System.Envy
        ( -- * Types
          Env     (..)
-       -- , Parser  (..)
         -- * Classes
        , FromEnv (..)
        , ToEnv   (..)
        , Var     (..)
         -- * Functions
        , loadEnv
-       , parseEnv
-       , printEnv
+       , decodeEnv
+       , decode
+       , showEnv
        , setEnvironment
        , unsetEnvironment
        , (.=)
        , (.:)
+       , (.:?)
+       , (.!=)
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
@@ -36,6 +38,7 @@ import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Exception
+import           Data.Maybe
 import           Data.Time
 import           Data.Monoid
 import           Control.Monad
@@ -64,6 +67,11 @@ newtype Parser a = Parser { runParser :: ReaderT Env (ExceptT String IO) a }
            , MonadIO, Alternative, MonadPlus )
 
 ------------------------------------------------------------------------------
+-- | Variable type, smart constructor for handling Env. Variables
+data EnvVar = EnvVar { getEnvVar :: (String, String) }
+  deriving (Show, Eq)
+
+------------------------------------------------------------------------------
 -- | Execute Parser
 evalParser :: FromEnv a => Parser a -> IO (Either String a)
 evalParser stack = do
@@ -88,6 +96,18 @@ getE k (Env m) = do
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable getter
+getEMaybe
+  :: forall a . (Typeable a, Var a)
+  => String
+  -> Env
+  -> Parser (Maybe a)
+getEMaybe k (Env m) = do
+  return $ do
+    dv <- M.lookup k m
+    fromVar dv 
+
+------------------------------------------------------------------------------
+-- | Infix environment variable getter
 (.:) :: forall a. (Typeable a, Var a)
   => String
   -> Env
@@ -95,12 +115,29 @@ getE k (Env m) = do
 (.:) = getE
 
 ------------------------------------------------------------------------------
--- | Infix environment variable setter
+-- | Infix environment variable setter 
+-- this is a smart constructor for producing types of `EnvVar`
 (.=) :: Var a
      => String
      -> a
-     -> (String, String)
-(.=) x y = (x, toVar y)
+     -> EnvVar 
+(.=) x y = EnvVar (x, toVar y)
+
+------------------------------------------------------------------------------
+-- | Maybe parser
+(.:?) :: forall a. (Typeable a, Var a)
+  => String
+  -> Env
+  -> Parser (Maybe a)
+(.:?) = getEMaybe
+
+------------------------------------------------------------------------------
+-- | For use with (.:?) for providing default arguments
+(.!=) :: forall a. (Typeable a, Var a)
+  => Parser (Maybe a)
+  -> a
+  -> Parser a          
+(.!=) p x  = fmap (fromMaybe x) p
 
 ------------------------------------------------------------------------------
 -- | FromEnv Typeclass
@@ -114,7 +151,7 @@ instance FromEnv Env where fromEnv = return
 ------------------------------------------------------------------------------
 -- | ToEnv Typeclass
 class Show a => ToEnv a where
-  toEnv :: a -> [(String, String)]
+  toEnv :: a -> [EnvVar]
 
 ------------------------------------------------------------------------------
 -- | Class for converting to / from an environment variable
@@ -199,20 +236,28 @@ instance Var String where
   fromVar = Just 
 
 ------------------------------------------------------------------------------
--- | Environment retrieval
+-- | Environment loading
 loadEnv :: IO Env
 loadEnv = Env . M.fromList <$> getEnvironment
 
 ------------------------------------------------------------------------------
--- | Environment retrieval
-parseEnv :: FromEnv a => IO (Either String a)
-parseEnv = loadEnv >>= evalParser . fromEnv
+-- | Environment retrieval with failure info
+decodeEnv :: FromEnv a => IO (Either String a)
+decodeEnv = loadEnv >>= evalParser . fromEnv
 
 ------------------------------------------------------------------------------
--- | Set environment from a ToEnv constrained type
+-- | Environment retrieval (with no failure info)
+decode :: FromEnv a => IO (Maybe a)
+decode = fmap f $ loadEnv >>= evalParser . fromEnv
+  where
+    f (Left _) = Nothing
+    f (Right x) = Just x
+
+------------------------------------------------------------------------------
+-- | Set environment via a ToEnv constrained type
 setEnvironment :: ToEnv a => a -> IO (Either String ())
 setEnvironment x = do
-  result <- try $ mapM_ (uncurry setEnv) (toEnv x)
+  result <- try $ mapM_ (uncurry setEnv) (map getEnvVar $ toEnv x)
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
@@ -221,12 +266,12 @@ setEnvironment x = do
 -- | Unset Environment from a ToEnv constrained type
 unsetEnvironment :: ToEnv a => a -> IO (Either String ())
 unsetEnvironment x = do
-  result <- try $ mapM_ unsetEnv $ map fst (toEnv x)
+  result <- try $ mapM_ unsetEnv $ map fst (map getEnvVar $ toEnv x)
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
 
 ------------------------------------------------------------------------------
--- | Print Env
-printEnv :: Env -> IO ()
-printEnv (Env xs) = mapM_ print (M.toList xs)
+-- | Env helper
+showEnv :: Env -> IO ()
+showEnv (Env xs) = mapM_ print (M.toList xs)

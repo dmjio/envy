@@ -32,7 +32,7 @@ import           Test.QuickCheck.Instances
 ------------------------------------------------------------------------------
 -- | Posgtres port
 newtype PGPORT = PGPORT Int
-     deriving (Read, Show, Var, Eq, Typeable)
+     deriving (Read, Show, Var, Eq, Typeable, Num)
 
 ------------------------------------------------------------------------------
 -- | Postgres URL
@@ -47,13 +47,10 @@ data PGConfig = PGConfig {
   } deriving (Show, Read, Eq, Typeable)
 
 ------------------------------------------------------------------------------
--- | Instances
+-- | FromEnv Instances
 instance FromEnv PGConfig where
   fromEnv env = do
-    PGConfig  <$> "PG_PORT2" .: env 
-              <*> "PG_URL"   .: env
-              <|>
-     PGConfig <$> "PG_PORT"  .: env 
+    PGConfig  <$> "PG_PORT-OOPS" .:? env .!= (5432 :: PGPORT)
               <*> "PG_URL"   .: env
 
 ------------------------------------------------------------------------------
@@ -103,6 +100,6 @@ main = hspec $ do
   describe "Can set to and from environment" $ do
     it "Should set environment" $ do
       setEnvironment pgConfig
-      pg' <- parseEnv :: IO (Either String PGConfig)
+      pg' <- decodeEnv :: IO (Either String PGConfig)
       pg' `shouldSatisfy` isRight
 
