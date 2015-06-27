@@ -30,7 +30,7 @@ class (Read a, Show a) => Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 ```
-With instances for most primitive types already supported (`Word8` - `Word32`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, error handling and environment fetching. 
+With instances for most primitive types supported (`Word8` - `Word32`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, customer error handling and environment fetching. See below for an example.
 
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
@@ -136,8 +136,8 @@ main :: IO ()
 main = do
    setEnvironment (toEnv :: EnvList PGConfig)
    result <- decodeEnv :: IO (Either String PGConfig)
-   print result -- "<PGConfig>", connection pools now initialized from environment set values
-  -- unsetEnvironment $ PGConfig 5432 "localhost"  -- remove when done
+   print result -- "Right <PGConfig>", connection pools initialized from environment set values
+   -- unsetEnvironment (toEnv :: EnvList PGConfig)  -- remove when done
 ```
 
 *Note*: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if a `=` is present in an environment. `envy` catches these synchronous exceptions and delivers them
