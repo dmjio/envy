@@ -45,18 +45,7 @@ module Main ( main ) where
 import           Control.Applicative
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.IO.Class (liftIO)
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Char8 as BL8
 import           Data.Either
-import           Data.Int
-import           Data.String
-import           Data.Text (Text)
-import           Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-import           Data.Time
-import           Data.Typeable
 import           Data.Word
 import           System.Environment
 import           System.Envy
@@ -110,7 +99,7 @@ main :: IO ()
 main = do
    setEnvironment (toEnv :: EnvList PGConfig)
    result <- decodeEnv :: IO (Either String PGConfig)
-   print result -- "Right <PGConfig>", connection pools initialized from environment set values
+   print result -- "Right <PGConfig>"
    -- unsetEnvironment (toEnv :: EnvList PGConfig)  -- remove when done
 ```
 
