@@ -73,8 +73,9 @@ instance Show PGConfig where
   show PGConfig {..} = "<PGConfig>"
 
 ------------------------------------------------------------------------------
--- | FromEnv Instances, supports popular aeson combinators *and* IO
--- for dealing with connection pools
+-- | FromEnv instances support popular aeson combinators *and* IO
+-- for dealing with connection pools. `env` is equivalent to `(.:)` in `aeson`
+-- and `envMaybe` is equivalent to `(.:?)`, except here the lookups are impure.
 instance FromEnv PGConfig where
   fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
                                       <*> env "PG_PORT"
