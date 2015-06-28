@@ -43,8 +43,6 @@ module Main ( main ) where
 import System.Environment
 import Control.Monad
 import System.Envy
-import Test.Hspec
-import Data.Text    (Text)
 import Data.Either
 import Data.Word
 import Data.String
@@ -52,14 +50,7 @@ import Control.Exception
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Error
 import Data.Typeable
-import Test.QuickCheck
-import Test.QuickCheck.Instances
 import Data.Int
-import Data.Time
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text as T
 import Data.Text    (Text)
 import Database.PostgreSQL.Simple
 ------------------------------------------------------------------------------
