@@ -74,8 +74,8 @@ instance Show PGConfig where
 
 ------------------------------------------------------------------------------
 -- | FromEnv instances support popular aeson combinators *and* IO
--- for dealing with connection pools. `env` is equivalent to `(.:)` in `aeson`
--- and `envMaybe` is equivalent to `(.:?)`, except here the lookups are impure.
+-- for dealing with connection pools. `env` is equivalent to (.:) in `aeson`
+-- and `envMaybe` is equivalent to (.:?), except here the lookups are impure.
 instance FromEnv PGConfig where
   fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
                                       <*> env "PG_PORT"
@@ -85,6 +85,8 @@ instance FromEnv PGConfig where
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
+-- (.=) is a smart constructor for producing types of `EnvVar` (which ensures
+-- that Strings are set properly in an environment so they can be parsed properly
 instance ToEnv PGConfig where
   toEnv = makeEnv 
        [ "PG_HOST" .= ("localhost" :: String)
