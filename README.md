@@ -5,6 +5,7 @@ Let's face it, dealing with environment variables in Haskell isn't that satisfyi
 ```haskell
 import System.Environment
 import Data.Text (pack)
+import Text.Read (readMaybe)
 
 data PGConfig = PGConfig {
   pgPort :: Int
@@ -19,7 +20,7 @@ getPGPort = do
     (Just port, Just url) ->
       case readMaybe port :: Maybe Int of
         Nothing -> error "PG_PORT isn't a number"
-        Just portNum -> return $ PGConfig portNum (pack y)
+        Just portNum -> return $ PGConfig portNum (pack url)
     (Nothing, _) -> error "Couldn't find PG_PORT"    
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
@@ -30,7 +31,7 @@ class (Read a, Show a) => Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 ```
-With instances for most primitive types supported (`Word8` - `Word32`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, customer error handling and environment fetching. See below for an example.
+With instances for most primitive types supported (`Word8` - `Word64`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, custom error handling and environment fetching. See below for an example.
 
 ```haskell
 {-# LANGUAGE RecordWildCards            #-}
@@ -43,8 +44,6 @@ module Main ( main ) where
 import System.Environment
 import Control.Monad
 import System.Envy
-import Test.Hspec
-import Data.Text    (Text)
 import Data.Either
 import Data.Word
 import Data.String
@@ -52,14 +51,7 @@ import Control.Exception
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Error
 import Data.Typeable
-import Test.QuickCheck
-import Test.QuickCheck.Instances
 import Data.Int
-import Data.Time
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text as T
 import Data.Text    (Text)
 import Database.PostgreSQL.Simple
 ------------------------------------------------------------------------------
