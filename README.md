@@ -52,9 +52,9 @@ connectInfo = ConnectInfo
    <*> env "PG_PASS"
    <*> env "PG_DB"
 ```
-This abstraction falls short in two areas
-  - 1) Environment lookups don't return any information when a variable doesn't exist (just a `Nothing`)
-  - 2) Environment lookups don't attempt to parse the returned type into something meaningful (everything is returned as a `String`)
+This abstraction falls short in two areas:
+  - Lookups don't return any information when a variable doesn't exist (just a `Nothing`)
+  - Lookups don't attempt to parse the returned type into something meaningful (everything is returned as a `String`)
 
 What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide variable lookups that provide both key-lookup and parse failure information?
 Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment. The `Var` typeclass is simply:
