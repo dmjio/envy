@@ -9,7 +9,6 @@ module Main ( main ) where
 import           Control.Applicative
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.Error
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -29,41 +28,12 @@ import           Test.Hspec
 import           Test.QuickCheck
 import           Test.QuickCheck.Instances
 ------------------------------------------------------------------------------
--- | Posgtres Port
-newtype PGPORT = PGPORT Word16
-     deriving (Read, Show, Var, Typeable, Num)
-
-------------------------------------------------------------------------------
--- | Postgres URL
-newtype PGURL = PGURL String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres Host
-newtype PGHOST = PGHOST String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres DB
-newtype PGDB = PGDB String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres User
-newtype PGUSER = PGUSER String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres Password
-newtype PGPASS = PGPASS String
-     deriving (Read, Show, Var, IsString, Typeable)
-
 data ConnectInfo = ConnectInfo {
-      pgHost :: PGHOST
-    , pgDB   :: PGDB
-    , pgPass :: PGPASS
-    , pgUrl  :: PGURL
-    , pgUser :: PGUSER
+      pgHost :: String
+    , pgPort :: Word16
+    , pgUser :: String
+    , pgPass :: String
+    , pgDB   :: String
   } deriving (Show)
 
 ------------------------------------------------------------------------------
@@ -81,22 +51,21 @@ instance Show PGConfig where
 -- | FromEnv Instances, supports popular aeson combinators *and* IO
 -- for dealing with connection pools
 instance FromEnv PGConfig where
-  fromEnv env = do
-    PGConfig <$> (ConnectInfo <$> "PG_HOST" .:? env .!= ("localhost" :: PGHOST)
-                           <*> "PG_PORT" .: env 
-                           <*> "PG_USER" .: env 
-                           <*> "PG_PASS" .: env 
-                           <*> "PG_DB"   .: env)
+  fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
+                                      <*> env "PG_PORT"
+                                      <*> env "PG_USER" 
+                                      <*> env "PG_PASS" 
+                                      <*> env "PG_DB")
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
 instance ToEnv PGConfig where
   toEnv = makeEnv 
-       [ "PG_HOST" .= PGHOST "localhost"
-       , "PG_PORT" .= PGPORT 5432
-       , "PG_USER" .= PGUSER "user"
-       , "PG_PASS" .= PGPASS "pass"
-       , "PG_DB"   .= PGDB "db"
+       [ "PG_HOST" .= ("localhost" :: String)
+       , "PG_PORT" .= (5432        :: Word16)
+       , "PG_USER" .= ("user"      :: String)
+       , "PG_PASS" .= ("pass"      :: String)
+       , "PG_DB"   .= ("db"        :: String)
        ]
 
 ------------------------------------------------------------------------------

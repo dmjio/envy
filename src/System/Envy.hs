@@ -1,9 +1,9 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE RankNTypes                 #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : System.Envy
@@ -14,29 +14,25 @@
 -- 
 ------------------------------------------------------------------------------
 module System.Envy
-       ( -- * Types
-         Env     (..)
-        -- * Classes
-       , FromEnv (..)
+       ( -- * Classes
+         FromEnv (..)
        , ToEnv   (..)
        , Var     (..)
+       , EnvList
         -- * Functions
-       , loadEnv
        , decodeEnv
        , decode
        , showEnv
        , setEnvironment
        , unsetEnvironment
        , makeEnv 
-       , EnvList
+       , env
+       , envMaybe
        , (.=)
-       , (.:)
-       , (.:?)
        , (.!=)
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
-import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Exception
@@ -45,6 +41,7 @@ import           Data.Time
 import           Data.Monoid
 import           Control.Monad
 import           Data.Typeable
+import           Data.String
 import           System.Environment
 import           Text.Read (readMaybe)
 import qualified Data.Text as T
@@ -58,14 +55,9 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
--- | Environment
-newtype Env = Env { env :: M.Map String String }
-  deriving (Show)
-
-------------------------------------------------------------------------------
 -- | Parser
-newtype Parser a = Parser { runParser :: ReaderT Env (ExceptT String IO) a }
-  deriving ( Functor, Monad, Applicative, MonadReader Env, MonadError String
+newtype Parser a = Parser { runParser :: ExceptT String IO a }
+  deriving ( Functor, Monad, Applicative, MonadError String
            , MonadIO, Alternative, MonadPlus )
 
 ------------------------------------------------------------------------------
@@ -76,19 +68,17 @@ data EnvVar = EnvVar { getEnvVar :: (String, String) }
 ------------------------------------------------------------------------------
 -- | Execute Parser
 evalParser :: FromEnv a => Parser a -> IO (Either String a)
-evalParser stack = do
-  env <- liftIO loadEnv
-  runExceptT $ runReaderT (runParser stack) env
+evalParser = runExceptT . runParser
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable getter
 getE
   :: forall a . (Typeable a, Var a)
   => String
-  -> Env
   -> Parser a
-getE k (Env m) = do
-  case M.lookup k m of
+getE k = do
+  result <- liftIO (lookupEnv k)
+  case result of
     Nothing -> throwError $ "Variable not found for: " ++ k
     Just dv ->
       case fromVar dv :: Maybe a of
@@ -97,24 +87,38 @@ getE k (Env m) = do
         Just x -> return x
 
 ------------------------------------------------------------------------------
+-- | Environment variable getter 
+env :: forall a. (Typeable a, Var a)
+    => String
+    -> Parser a
+env = getE
+
+------------------------------------------------------------------------------
 -- | Infix environment variable getter
 getEMaybe
   :: forall a . (Typeable a, Var a)
   => String
-  -> Env
   -> Parser (Maybe a)
-getEMaybe k (Env m) = do
-  return $ do
-    dv <- M.lookup k m
-    fromVar dv 
+getEMaybe k = do
+  val <- liftIO (lookupEnv k)
+  return $ case val of
+   Nothing -> Nothing
+   Just x -> fromVar x
 
 ------------------------------------------------------------------------------
--- | Infix environment variable getter
-(.:) :: forall a. (Typeable a, Var a)
+-- | Maybe parser
+envMaybe :: forall a. (Typeable a, Var a)
   => String
-  -> Env
-  -> Parser a
-(.:) = getE
+  -> Parser (Maybe a)
+envMaybe = getEMaybe
+
+------------------------------------------------------------------------------
+-- | For use with (.:?) for providing default arguments
+(.!=) :: forall a. (Typeable a, Var a)
+  => Parser (Maybe a)
+  -> a
+  -> Parser a          
+(.!=) p x  = fmap (fromMaybe x) p
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable setter 
@@ -126,29 +130,9 @@ getEMaybe k (Env m) = do
 (.=) x y = EnvVar (x, toVar y)
 
 ------------------------------------------------------------------------------
--- | Maybe parser
-(.:?) :: forall a. (Typeable a, Var a)
-  => String
-  -> Env
-  -> Parser (Maybe a)
-(.:?) = getEMaybe
-
-------------------------------------------------------------------------------
--- | For use with (.:?) for providing default arguments
-(.!=) :: forall a. (Typeable a, Var a)
-  => Parser (Maybe a)
-  -> a
-  -> Parser a          
-(.!=) p x  = fmap (fromMaybe x) p
-
-------------------------------------------------------------------------------
 -- | FromEnv Typeclass
 class FromEnv a where
-  fromEnv :: Env -> Parser a
-
-------------------------------------------------------------------------------
--- | Identity instance
-instance FromEnv Env where fromEnv = return
+  fromEnv :: Parser a
 
 ------------------------------------------------------------------------------
 -- | ToEnv Typeclass
@@ -247,21 +231,16 @@ instance Var String where
   fromVar = Just 
 
 ------------------------------------------------------------------------------
--- | Environment loading
-loadEnv :: IO Env
-loadEnv = Env . M.fromList <$> getEnvironment
-
-------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
 decodeEnv :: FromEnv a => IO (Either String a)
-decodeEnv = loadEnv >>= evalParser . fromEnv
+decodeEnv = evalParser fromEnv 
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval (with no failure info)
 decode :: FromEnv a => IO (Maybe a)
-decode = fmap f $ loadEnv >>= evalParser . fromEnv
+decode = fmap f decodeEnv
   where
-    f (Left _) = Nothing
+    f (Left _)  = Nothing
     f (Right x) = Just x
 
 ------------------------------------------------------------------------------
@@ -284,5 +263,5 @@ unsetEnvironment (EnvList xs) = do
 
 ------------------------------------------------------------------------------
 -- | Env helper
-showEnv :: Env -> IO ()
-showEnv (Env xs) = mapM_ print (M.toList xs)
+showEnv :: IO ()
+showEnv = mapM_ print =<< getEnvironment

@@ -34,6 +34,7 @@ class (Read a, Show a) => Var a where
 With instances for most primitive types supported (`Word8` - `Word64`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, custom error handling and environment fetching. See below for an example.
 
 ```haskell
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -41,54 +42,40 @@ With instances for most primitive types supported (`Word8` - `Word64`, `Int`, `I
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
-import System.Environment
-import Control.Monad
-import System.Envy
-import Data.Either
-import Data.Word
-import Data.String
-import Control.Exception
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Error
-import Data.Typeable
-import Data.Int
-import Data.Text    (Text)
-import Database.PostgreSQL.Simple
+import           Control.Applicative
+import           Control.Exception
+import           Control.Monad
+import           Control.Monad.IO.Class (liftIO)
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
+import           Data.Either
+import           Data.Int
+import           Data.String
+import           Data.Text (Text)
+import           Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import           Data.Time
+import           Data.Typeable
+import           Data.Word
+import           System.Environment
+import           System.Envy
+import           Test.Hspec
+import           Test.QuickCheck
+import           Test.QuickCheck.Instances
 ------------------------------------------------------------------------------
--- | Posgtres Port
-newtype PGPORT = PGPORT Word16
-     deriving (Read, Show, Var, Typeable, Num)
-
-------------------------------------------------------------------------------
--- | Postgres URL
-newtype PGURL = PGURL String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres Host
-newtype PGHOST = PGHOST String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres DB
-newtype PGDB = PGDB String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres User
-newtype PGUSER = PGUSER String
-     deriving (Read, Show, Var, IsString, Typeable)
-
-------------------------------------------------------------------------------
--- | Postgres Password
-newtype PGPASS = PGPASS String
-     deriving (Read, Show, Var, IsString, Typeable)
+data ConnectInfo = ConnectInfo {
+      pgHost :: String
+    , pgPort :: Word16
+    , pgUser :: String
+    , pgPass :: String
+    , pgDB   :: String
+  } deriving (Show)
 
 ------------------------------------------------------------------------------
 -- | Posgtres config
 data PGConfig = PGConfig {
     pgConnectInfo :: ConnectInfo -- ^ Connnection Info
-  , pgConnection  :: Connection  -- ^ Connection Pool 
   } 
 
 ------------------------------------------------------------------------------
@@ -100,26 +87,21 @@ instance Show PGConfig where
 -- | FromEnv Instances, supports popular aeson combinators *and* IO
 -- for dealing with connection pools
 instance FromEnv PGConfig where
-  fromEnv env = do
-    conInfo <- ConnectInfo <$> "PG_HOST" .:? env .!= ("localhost" :: String)
-                           <*> "PG_PORT" .: env 
-                           <*> "PG_USER" .: env 
-                           <*> "PG_PASS" .: env 
-                           <*> "PG_DB"   .: env 
-    result <- liftIO $ try (connect conInfo)
-    case result of
-      Left (err :: IOException) -> throwError (show err)
-      Right con -> return $ PGConfig conInfo con
+  fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
+                                      <*> env "PG_PORT"
+                                      <*> env "PG_USER" 
+                                      <*> env "PG_PASS" 
+                                      <*> env "PG_DB")
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
 instance ToEnv PGConfig where
   toEnv = makeEnv 
-       [ "PG_HOST" .= PGHOST "localhost"
-       , "PG_PORT" .= PGPORT 5432
-       , "PG_USER" .= PGUSER "user"
-       , "PG_PASS" .= PGPASS "pass"
-       , "PG_DB"   .= PGDB "db"
+       [ "PG_HOST" .= ("localhost" :: String)
+       , "PG_PORT" .= (5432        :: Word16)
+       , "PG_USER" .= ("user"      :: String)
+       , "PG_PASS" .= ("pass"      :: String)
+       , "PG_DB"   .= ("db"        :: String)
        ]
 
 ------------------------------------------------------------------------------
