@@ -5,6 +5,7 @@ Let's face it, dealing with environment variables in Haskell isn't that satisfyi
 ```haskell
 import System.Environment
 import Data.Text (pack)
+import Text.Read (readMaybe)
 
 data PGConfig = PGConfig {
   pgPort :: Int
