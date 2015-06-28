@@ -25,7 +25,39 @@ getPGPort = do
     (_, Nothing) -> error "Couldn't find PG_URL"    
     -- Pretty gross right...
 ```
-What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide a cleaner interface? Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment. The `Var` typeclass is simply:
+
+Another attempt to remedy the lookup madness is with a `MaybeT IO a`. See below.
+```haskell
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+import Control.Applicative
+import Control.Monad.Trans.Maybe
+import Control.Monad.IO.Class
+import System.Environment
+
+newtype Env a = Env { unEnv :: MaybeT IO a }
+    deriving (Functor, Applicative, Monad, MonadIO, Alternative, MonadPlus)
+
+getEnv :: Env a -> IO (Maybe a)
+getEnv env = runMaybeT (unEnv env)
+
+env :: String -> Env a
+env key = Env (MaybeT (lookupEnv key))
+
+connectInfo :: Env ConnectInfo
+connectInfo = ConnectInfo
+   <$> env "PG_HOST"
+   <*> env "PG_PORT"
+   <*> env "PG_USER"
+   <*> env "PG_PASS"
+   <*> env "PG_DB"
+```
+This abstraction falls short in two areas
+  - 1) Environment lookups don't return any information when a variable doesn't exist (just a `Nothing`)
+  - 2) Environment lookups don't attempt to parse the returned type into something meaningful (everything is returned as a `String`)
+
+What if we could apply aeson's `FromJSON` / `ToJSON` pattern to provide variable lookups that provide both key-lookup and parse failure information?
+Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment. The `Var` typeclass is simply:
 ```haskell
 class (Read a, Show a) => Var a where
   toVar   :: a -> String
