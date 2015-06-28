@@ -31,7 +31,7 @@ test-suite spec
     main-is:            Main.hs
     build-depends:      base                 >= 4.7 && < 5
                       , bytestring           == 0.10.*
-                      , envy                 == 0.1.*
+                      , envy                 == 0.2.*
                       , hspec                == 2.1.*
                       , mtl                  == 2.2.*
                       , quickcheck-instances == 0.3.*
