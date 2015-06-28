@@ -49,9 +49,6 @@ import           Data.Either
 import           Data.Word
 import           System.Environment
 import           System.Envy
-import           Test.Hspec
-import           Test.QuickCheck
-import           Test.QuickCheck.Instances
 ------------------------------------------------------------------------------
 data ConnectInfo = ConnectInfo {
       pgHost :: String
