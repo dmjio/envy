@@ -31,7 +31,7 @@ class (Read a, Show a) => Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 ```
-With instances for most primitive types supported (`Word8` - `Word64`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadReader Env`, `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser, custom error handling and environment fetching. See below for an example.
+With instances for most primitive types supported (`Word8` - `Word64`, `Int`, `Integer`, `String`, `Text`, etc.) the `Var` class is easily deriveable. The `FromEnv` typeclass provides a parser type that is an instance of `MonadError String` and `MonadIO`. This allows for connection pool initialization inside of our environment parser and custom error handling. The `ToEnv` class allows us to create an environment configuration given any `a`. See below for an example.
 
 ```haskell
 {-# LANGUAGE ScopedTypeVariables        #-}
