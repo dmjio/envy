@@ -94,12 +94,7 @@ data ConnectInfo = ConnectInfo {
 -- | Posgtres config
 data PGConfig = PGConfig {
     pgConnectInfo :: ConnectInfo -- ^ Connnection Info
-  } 
-
-------------------------------------------------------------------------------
--- | Custom show instance
-instance Show PGConfig where
-  show PGConfig {..} = "<PGConfig>"
+  } deriving Show
 
 ------------------------------------------------------------------------------
 -- | FromEnv instances support popular aeson combinators *and* IO
@@ -130,8 +125,7 @@ instance ToEnv PGConfig where
 main :: IO ()
 main = do
    setEnvironment (toEnv :: EnvList PGConfig)
-   result <- decodeEnv :: IO (Either String PGConfig)
-   print result -- "Right <PGConfig>"
+   print =<< do decodeEnv :: IO (Either String PGConfig)
    -- unsetEnvironment (toEnv :: EnvList PGConfig)  -- remove when done
 ```
 
