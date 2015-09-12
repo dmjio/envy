@@ -107,9 +107,9 @@ main = hspec $ do
     it "Text Var isomorphism" $ property $ 
      \(x :: T.Text) -> Just x == fromVar (toVar x)
   describe "Can set to and from environment" $
-    it "Isomorphism through setEnvironment and decodeEnv" $ property $
+    it "Isomorphism through setEnvironment['] and decodeEnv" $ property $
       \(pgConf::PGConfig) -> monadicIO $ do
         res <- run $ do
-                 _ <- setEnvironment $ toEnv pgConf
+                 _ <- setEnvironment' pgConf
                  decodeEnv
         assert $ res == Right pgConf

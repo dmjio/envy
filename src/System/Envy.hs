@@ -23,6 +23,7 @@ module System.Envy
        , decode
        , showEnv
        , setEnvironment
+       , setEnvironment'
        , unsetEnvironment
        , makeEnv 
        , env
@@ -245,6 +246,11 @@ setEnvironment (EnvList xs) = do
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
+
+------------------------------------------------------------------------------
+-- | Set environment directly using a value of class ToEnv
+setEnvironment' :: ToEnv a => a -> IO (Either String ())
+setEnvironment' = setEnvironment . toEnv
 
 ------------------------------------------------------------------------------
 -- | Unset Environment from a ToEnv constrained type
