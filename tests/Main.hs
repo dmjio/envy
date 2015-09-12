@@ -7,7 +7,7 @@
 module Main ( main ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
-import           Control.Exception
+import           Control.Exception hiding (assert)
 import           Control.Monad
 import           Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Char8 as B8
@@ -27,6 +27,7 @@ import           System.Envy
 import           Test.Hspec
 import           Test.QuickCheck
 import           Test.QuickCheck.Instances
+import           Test.QuickCheck.Monadic
 ------------------------------------------------------------------------------
 data ConnectInfo = ConnectInfo {
       pgHost :: String
@@ -34,13 +35,25 @@ data ConnectInfo = ConnectInfo {
     , pgUser :: String
     , pgPass :: String
     , pgDB   :: String
-  } deriving (Show)
+  } deriving (Show, Eq)
+
+instance Arbitrary ConnectInfo where
+    arbitrary = ConnectInfo <$> nonulls
+                            <*> arbitrary
+                            <*> nonulls
+                            <*> nonulls
+                            <*> nonulls
+      where nonempty = getNonEmpty <$> arbitrary
+            nonulls = nonempty `suchThat` (not . ('\NUL' `elem`))
 
 ------------------------------------------------------------------------------
 -- | Posgtres config
 data PGConfig = PGConfig {
     pgConnectInfo :: ConnectInfo -- ^ Connnection Info
-  } 
+  } deriving (Eq)
+
+instance Arbitrary PGConfig where
+    arbitrary = PGConfig <$> arbitrary
 
 ------------------------------------------------------------------------------
 -- | Custom show instance
@@ -60,13 +73,12 @@ instance FromEnv PGConfig where
 ------------------------------------------------------------------------------
 -- | To Environment Instances
 instance ToEnv PGConfig where
-  toEnv = makeEnv 
-       [ "PG_HOST" .= ("localhost" :: String)
-       , "PG_PORT" .= (5432        :: Word16)
-       , "PG_USER" .= ("user"      :: String)
-       , "PG_PASS" .= ("pass"      :: String)
-       , "PG_DB"   .= ("db"        :: String)
-       ]
+  toEnv (PGConfig ConnectInfo{..}) = makeEnv [ "PG_HOST" .= pgHost
+                                             , "PG_PORT" .= pgPort
+                                             , "PG_USER" .= pgUser
+                                             , "PG_PASS" .= pgPass
+                                             , "PG_DB"   .= pgDB
+                                             ]
 
 ------------------------------------------------------------------------------
 -- | Start tests
@@ -103,8 +115,10 @@ main = hspec $ do
      \(x :: LT.Text) -> Just x == fromVar (toVar x)
     it "Text Var isomorphism" $ property $ 
      \(x :: T.Text) -> Just x == fromVar (toVar x)
-  describe "Can set to and from environment" $ do
-    it "Should set environment" $ do
-      setEnvironment (toEnv :: EnvList PGConfig)
-      result <- decodeEnv :: IO (Either String PGConfig)
-      result `shouldSatisfy` isRight
+  describe "Can set to and from environment" $
+    it "Isomorphism through setEnvironment and decodeEnv" $ property $
+      \(pgConf::PGConfig) -> monadicIO $ do
+        res <- run $ do
+                 _ <- setEnvironment $ toEnv pgConf
+                 decodeEnv
+        assert $ res == Right pgConf

@@ -137,7 +137,7 @@ class FromEnv a where
 ------------------------------------------------------------------------------
 -- | ToEnv Typeclass
 class Show a => ToEnv a where
-  toEnv :: EnvList a
+  toEnv :: a -> EnvList a
 
 ------------------------------------------------------------------------------
 -- | EnvList type w/ phanton
