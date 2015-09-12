@@ -2,7 +2,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE RankNTypes                 #-}
 ------------------------------------------------------------------------------
 -- |
@@ -24,6 +23,7 @@ module System.Envy
        , decode
        , showEnv
        , setEnvironment
+       , setEnvironment'
        , unsetEnvironment
        , makeEnv 
        , env
@@ -34,19 +34,14 @@ module System.Envy
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Monad.Except
-import           Control.Monad.Identity
 import           Control.Exception
 import           Data.Maybe
 import           Data.Time
-import           Data.Monoid
-import           Control.Monad
 import           Data.Typeable
-import           Data.String
 import           System.Environment
 import           Text.Read (readMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Map as M
 import           Data.Text (Text)
 import           Data.Word
 import           Data.Int
@@ -137,7 +132,7 @@ class FromEnv a where
 ------------------------------------------------------------------------------
 -- | ToEnv Typeclass
 class Show a => ToEnv a where
-  toEnv :: EnvList a
+  toEnv :: a -> EnvList a
 
 ------------------------------------------------------------------------------
 -- | EnvList type w/ phanton
@@ -247,16 +242,21 @@ decode = fmap f decodeEnv
 -- | Set environment via a ToEnv constrained type
 setEnvironment :: EnvList a -> IO (Either String ())
 setEnvironment (EnvList xs) = do
-  result <- try $ mapM_ (uncurry setEnv) (map getEnvVar xs)
+  result <- try $ mapM_ (uncurry setEnv . getEnvVar) xs
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()
 
 ------------------------------------------------------------------------------
+-- | Set environment directly using a value of class ToEnv
+setEnvironment' :: ToEnv a => a -> IO (Either String ())
+setEnvironment' = setEnvironment . toEnv
+
+------------------------------------------------------------------------------
 -- | Unset Environment from a ToEnv constrained type
 unsetEnvironment :: EnvList a -> IO (Either String ())
 unsetEnvironment (EnvList xs) = do
-  result <- try $ mapM_ unsetEnv $ map fst (map getEnvVar xs)
+  result <- try $ mapM_ (unsetEnv . fst . getEnvVar) xs
   return $ case result of
    Left (ex :: IOException) -> Left (show ex)
    Right () -> Right ()

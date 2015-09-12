@@ -1,2 +1,4 @@
 /dist/
 result
+.cabal-sandbox/
+cabal.sandbox.config
