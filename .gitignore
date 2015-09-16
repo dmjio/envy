@@ -1,4 +1,5 @@
 /dist/
 result
+*.nix
 .cabal-sandbox/
 cabal.sandbox.config
