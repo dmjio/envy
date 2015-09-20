@@ -1,5 +1,11 @@
-envy [![Circle CI](https://circleci.com/gh/dmjio/envy.svg?style=svg)](https://circleci.com/gh/dmjio/envy) [![Hackage](https://img.shields.io/hackage/v/envy.svg?style=flat)](https://hackage.haskell.org/package/envy)
+envy 
 ===================
+![Hackage](https://img.shields.io/hackage/v/envy.svg)
+![Hackage Dependencies](https://img.shields.io/hackage-deps/v/envy.svg)
+![Haskell Programming Language](https://img.shields.io/badge/language-Haskell-blue.svg)
+![BSD3 License](http://img.shields.io/badge/license-BSD3-brightgreen.svg)
+![Build Status](https://img.shields.io/circleci/project/dmjio/envy.svg)
+
 Let's face it, dealing with environment variables in Haskell isn't that satisfying.
 
 ```haskell
