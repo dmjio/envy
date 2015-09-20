@@ -118,12 +118,12 @@ instance FromEnv PGConfig where
 -- (.=) is a smart constructor for producing types of `EnvVar` (which ensures
 -- that Strings are set properly in an environment so they can be parsed properly
 instance ToEnv PGConfig where
-  toEnv = makeEnv 
-       [ "PG_HOST" .= ("localhost" :: String)
-       , "PG_PORT" .= (5432        :: Word16)
-       , "PG_USER" .= ("user"      :: String)
-       , "PG_PASS" .= ("pass"      :: String)
-       , "PG_DB"   .= ("db"        :: String)
+  toEnv PGConfig {..} = makeEnv 
+       [ "PG_HOST" .= pgHost
+       , "PG_PORT" .= pgPort
+       , "PG_USER" .= pgUser
+       , "PG_PASS" .= pgPass
+       , "PG_DB"   .= pgDB  
        ]
 
 ------------------------------------------------------------------------------
