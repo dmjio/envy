@@ -11,6 +11,10 @@ build-type:          Simple
 cabal-version:       >=1.10
 description:
         For package use information see the <https://github.com/dmjio/envy/blob/master/README.md README.md>
+
+extra-source-files:
+    README.md
+
 library
   exposed-modules:      System.Envy
   ghc-options:          -Wall
@@ -23,9 +27,6 @@ library
                       , time         == 1.5.*
                       , transformers == 0.4.*
   default-language:     Haskell2010
-
-extra-source-files:
-   README.md
 
 test-suite spec
     type:               exitcode-stdio-1.0
@@ -43,6 +44,7 @@ test-suite spec
                       , time                 == 1.5.*
                       , transformers         == 0.4.*
     default-language:   Haskell2010
+
 
 source-repository head
   type:     git
