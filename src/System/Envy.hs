@@ -48,13 +48,10 @@ import           Data.Int
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 ------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
 -- | Parser
 newtype Parser a = Parser { runParser :: ExceptT String IO a }
   deriving ( Functor, Monad, Applicative, MonadError String
            , MonadIO, Alternative, MonadPlus )
-
 ------------------------------------------------------------------------------
 -- | Variable type, smart constructor for handling Env. Variables
 data EnvVar = EnvVar { getEnvVar :: (String, String) }
@@ -145,7 +142,7 @@ makeEnv = EnvList
 
 ------------------------------------------------------------------------------
 -- | Class for converting to / from an environment variable
-class (Read a, Show a) => Var a where
+class Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 

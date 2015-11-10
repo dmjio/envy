@@ -65,7 +65,7 @@ This abstraction falls short in two areas:
 What if we could apply aeson's `FromJSON` / `ToJSON` pattern to give us variable lookups that provide both key-lookup and parse failure information?
 Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment. The `Var` typeclass is simply:
 ```haskell
-class (Read a, Show a) => Var a where
+class Var a where
   toVar   :: a -> String
   fromVar :: String -> Maybe a
 ```
