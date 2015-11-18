@@ -133,7 +133,8 @@ main = do
 *Note*: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if a `=` is present in an environment. `envy` catches these synchronous exceptions and delivers them
 purely to the end user.
 
-### Generics
+Generics
+===================
 
 As of version `1.0`, all `FromEnv` instance boilerplate can be completely removed thanks to `GHC.Generics`! Below is an example.
 
