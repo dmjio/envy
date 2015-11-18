@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -62,6 +63,8 @@ module System.Envy
          -- * Generics
        , DefConfig (..)
        , Option (..)
+       , runEnv
+       , gFromEnvCustom
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
@@ -94,8 +97,16 @@ data EnvVar = EnvVar { getEnvVar :: (String, String) }
 
 ------------------------------------------------------------------------------
 -- | Executes `Parser`
-evalParser :: FromEnv a => Parser a -> IO (Either String a)
+evalParser :: Parser a -> IO (Either String a)
 evalParser = runExceptT . runParser
+
+------------------------------------------------------------------------------
+-- | For use with Generics, no `FromEnv` typeclass necessary
+--
+-- > getPgConfig :: IO (Either String ConnectInfo)
+-- > getPgConfig = runEnv $ gFromEnvCustom defOption
+runEnv :: Parser a -> IO (Either String a)
+runEnv = runExceptT . runParser
 
 ------------------------------------------------------------------------------
 -- | Environment variable getter
@@ -160,11 +171,17 @@ envMaybe = getEMaybe
 -- | `FromEnv` Typeclass w/ Generic default implementation
 class FromEnv a where
   fromEnv :: Parser a
-  fromEnvCustom :: (DefConfig a, Generic a, GFromEnv (Rep a)) => Option -> Parser a
-  fromEnvCustom opts = to <$> gFromEnv (from (defConfig :: a)) opts
   default fromEnv :: (DefConfig a, Generic a, GFromEnv (Rep a)) => Parser a
-  fromEnv = fromEnvCustom defOption
+  fromEnv = gFromEnvCustom defOption
 
+------------------------------------------------------------------------------
+-- | Meant for specifying a custom `Option` for environment retrieval
+--
+-- > instance FromEnv PGConfig where
+-- >   fromEnv = gFromEnvCustom Option { dropPrefixCount = 8, customPrefix = "PG" }
+--
+gFromEnvCustom :: forall a . (DefConfig a, Generic a, GFromEnv (Rep a)) => Option -> Parser a
+gFromEnvCustom opts = to <$> gFromEnv (from (defConfig :: a)) opts
 ------------------------------------------------------------------------------
 -- | `Generic` FromEnv
 class GFromEnv f where
