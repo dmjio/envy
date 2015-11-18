@@ -1,5 +1,5 @@
 name:                envy
-version:             0.3.1.2
+version:             1.0.0.0
 synopsis:            An environmentally friendly way to deal with environment variables
 license:             BSD3
 license-file:        LICENSE
@@ -10,10 +10,11 @@ category:            System
 build-type:          Simple
 cabal-version:       >=1.10
 description:
-        For package use information see the <https://github.com/dmjio/envy/blob/master/README.md README.md>
+  For package use information see the <https://github.com/dmjio/envy/blob/master/README.md README.md>
 
 extra-source-files:
     README.md
+    examples/Test.hs
 
 library
   exposed-modules:      System.Envy
@@ -35,7 +36,7 @@ test-suite spec
     main-is:            Main.hs
     build-depends:      base                 >= 4.7 && < 5
                       , bytestring           == 0.10.*
-                      , envy                 == 0.3.*
+                      , envy                 == 1.0.*
                       , hspec                == 2.2.*
                       , mtl                  == 2.2.*
                       , quickcheck-instances == 0.3.*

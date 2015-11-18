@@ -1,3 +1,3 @@
-{ nixpkgs ? import <nixpkgs> {} }:
-            nixpkgs.pkgs.haskellPackages.callPackage ./envy.nix
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc7102" }:
+            nixpkgs.pkgs.haskell.packages.${compiler}.callPackage ./envy.nix
            { }
