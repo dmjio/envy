@@ -193,3 +193,29 @@ main =
   print =<< decodeEnv :: IO (Either String PGConfig)
  -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
 ```
+
+It's also possible to avoid typeclasses altogether using `runEnv` with `gFromEnvCustom`. 
+
+```haskell
+{-# LANGUAGE DeriveGeneric #-}
+module Main where
+
+import System.Envy
+import GHC.Generics
+
+data PGConfig = PGConfig {
+    connectHost :: String -- "PG_HOST"
+  , connectPort :: Int    -- "PG_PORT"
+  } deriving (Generic, Show)
+
+-- All fields will be converted to uppercase
+getPGEnv :: IO (Either String PCConfig)
+getPGEnv = runEnv $ gfromEnvCustom Option {
+                    dropPrefixCount = 7
+                  , customPrefix = "PG"
+		  }
+
+main :: IO ()
+main = print =<< getPGEnv
+ -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
+```
