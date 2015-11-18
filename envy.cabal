@@ -3,7 +3,7 @@ version:             1.0.0.0
 synopsis:            An environmentally friendly way to deal with environment variables
 license:             BSD3
 license-file:        LICENSE
-author:              David Johnson, Tim Adams
+author:              David Johnson, Tim Adams, Eric Mertens
 maintainer:          djohnson.m@gmail.com
 copyright:           David Johnson (c) 2015
 category:            System
