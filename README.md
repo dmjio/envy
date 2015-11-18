@@ -208,6 +208,10 @@ data PGConfig = PGConfig {
   , connectPort :: Int    -- "PG_PORT"
   } deriving (Generic, Show)
 
+-- Default PGConfig
+instance DefConfig PGConfig where
+  defConfig = PGConfig "localhost" 5432
+
 -- All fields will be converted to uppercase
 getPGEnv :: IO (Either String PCConfig)
 getPGEnv = runEnv $ gfromEnvCustom Option {
