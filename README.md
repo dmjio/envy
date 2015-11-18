@@ -106,7 +106,7 @@ instance FromEnv ConnectInfo where
 		<*> env "PG_PORT"
 		<*> env "PG_USER"
 		<*> env "PG_PASS"
-		<*> env "PG_DB")
+		<*> env "PG_DB"
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
