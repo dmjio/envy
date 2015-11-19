@@ -213,7 +213,7 @@ instance DefConfig PGConfig where
   defConfig = PGConfig "localhost" 5432
 
 -- All fields will be converted to uppercase
-getPGEnv :: IO (Either String PCConfig)
+getPGEnv :: IO (Either String PGConfig)
 getPGEnv = runEnv $ gfromEnvCustom Option {
                     dropPrefixCount = 7
                   , customPrefix = "PG"
