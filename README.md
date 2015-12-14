@@ -155,7 +155,7 @@ data PGConfig = PGConfig {
 instance DefConfig PGConfig where
   defConfig = PGConfig "localhost" 5432
 
-instance FromEnv PGConfig 
+instance FromEnv PGConfig
 -- Generically creates instance for retrieving environment variables (PG_HOST, PG_PORT)
 
 main :: IO ()
@@ -194,7 +194,7 @@ main =
  -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
 ```
 
-It's also possible to avoid typeclasses altogether using `runEnv` with `gFromEnvCustom`. 
+It's also possible to avoid typeclasses altogether using `runEnv` with `gFromEnvCustom`.
 
 ```haskell
 {-# LANGUAGE DeriveGeneric #-}
@@ -214,7 +214,7 @@ instance DefConfig PGConfig where
 
 -- All fields will be converted to uppercase
 getPGEnv :: IO (Either String PGConfig)
-getPGEnv = runEnv $ gfromEnvCustom Option {
+getPGEnv = runEnv $ gFromEnvCustom Option {
                     dropPrefixCount = 7
                   , customPrefix = "PG"
 		  }
