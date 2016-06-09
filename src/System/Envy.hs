@@ -111,7 +111,7 @@ runEnv = runExceptT . runParser
 ------------------------------------------------------------------------------
 -- | Environment variable getter
 getE
-  :: forall a . (Typeable a, Var a)
+  :: forall a . (Var a)
   => String
   -> Parser a
 getE k = do
@@ -126,7 +126,7 @@ getE k = do
 
 ------------------------------------------------------------------------------
 -- | Environment variable getter
-env :: forall a. (Typeable a, Var a)
+env :: forall a. (Var a)
     => String
     -> Parser a
 env = getE
@@ -134,7 +134,7 @@ env = getE
 ------------------------------------------------------------------------------
 -- | Environment variable getter returning `Maybe`
 getEMaybe
-  :: forall a . (Typeable a, Var a)
+  :: forall a . (Var a)
   => String
   -> Parser (Maybe a)
 getEMaybe k = do
@@ -145,15 +145,14 @@ getEMaybe k = do
 
 ------------------------------------------------------------------------------
 -- | Environment variable getter returning `Maybe`
-envMaybe :: forall a. (Typeable a, Var a)
+envMaybe :: forall a. (Var a)
   => String
   -> Parser (Maybe a)
 envMaybe = getEMaybe
 
 ------------------------------------------------------------------------------
 -- | For use with (.:?) for providing default arguments
-(.!=) :: forall a. (Typeable a, Var a)
-  => Parser (Maybe a)
+(.!=) :: Parser (Maybe a)
   -> a
   -> Parser a
 (.!=) p x  = fmap (fromMaybe x) p
@@ -218,7 +217,7 @@ instance GFromEnv a => GFromEnv (D1 i a) where gFromEnv (M1 x) opts = M1 <$> gFr
 
 ------------------------------------------------------------------------------
 -- | Construct a `Parser` from a `selName` and `DefConfig` record field
-instance (Selector s, Typeable a, Var a) => GFromEnv (S1 s (K1 i a)) where
+instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
   gFromEnv m@(M1 (K1 def)) opts =
       M1 . K1 <$> envMaybe (toEnvName opts $ selName m) .!= def
     where
@@ -253,7 +252,7 @@ data EnvList a = EnvList [EnvVar] deriving (Show)
 
 ------------------------------------------------------------------------------
 -- | smart constructor, Environment creation helper
-makeEnv :: ToEnv a => [EnvVar] -> EnvList a
+makeEnv :: [EnvVar] -> EnvList a
 makeEnv = EnvList
 
 ------------------------------------------------------------------------------
@@ -312,7 +311,7 @@ setEnvironment' = setEnvironment . toEnv
 
 ------------------------------------------------------------------------------
 -- | Unset Environment from a `ToEnv` constrained type
-unsetEnvironment :: ToEnv a => EnvList a -> IO (Either String ())
+unsetEnvironment :: EnvList a -> IO (Either String ())
 unsetEnvironment (EnvList xs) = do
   result <- try $ mapM_ (unsetEnv . fst . getEnvVar) xs
   return $ case result of
