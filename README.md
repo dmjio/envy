@@ -148,7 +148,7 @@ import GHC.Generics
 -- This record corresponds to our environment, where the field names become the variable names, and the values the environment variable value
 data PGConfig = PGConfig {
     pgHost :: String -- "PG_HOST"
-  , pgHost :: Int    -- "PG_PORT"
+  , pgPort :: Int    -- "PG_PORT"
   } deriving (Generic, Show)
 
 -- Default configuration will be used for fields that could not be retrieved from the environment
