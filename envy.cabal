@@ -1,5 +1,5 @@
 name:                envy
-version:             1.2.0.0
+version:             1.2.0.1
 synopsis:            An environmentally friendly way to deal with environment variables
 license:             BSD3
 license-file:        LICENSE
@@ -36,7 +36,7 @@ test-suite spec
     main-is:            Main.hs
     build-depends:      base
                       , bytestring
-                      , envy                 == 1.1.*
+                      , envy                 == 1.2.*
                       , hspec                == 2.2.*
                       , mtl
                       , quickcheck-instances == 0.3.*
