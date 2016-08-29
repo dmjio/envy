@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -8,6 +8,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE LambdaCase                 #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : System.Envy
@@ -55,6 +56,7 @@ module System.Envy
        , setEnvironment
        , setEnvironment'
        , unsetEnvironment
+       , unsetEnvironment'
        , makeEnv
        , env
        , envMaybe
@@ -91,8 +93,13 @@ newtype Parser a = Parser { runParser :: ExceptT String IO a }
            , MonadIO, Alternative, MonadPlus )
 
 ------------------------------------------------------------------------------
--- | Variable type, smart constructor for handling environment variables
-data EnvVar = EnvVar { getEnvVar :: (String, String) }
+-- | Variable type, smart constructor for handling environment variables.
+data EnvVar = EnvVar {
+  variableName :: String,
+  -- ^ The environment variable to set.
+  variableValue :: String
+  -- ^ The value to assign this variable to.
+  }
   deriving (Show, Eq)
 
 ------------------------------------------------------------------------------
@@ -109,62 +116,48 @@ runEnv :: Parser a -> IO (Either String a)
 runEnv = runExceptT . runParser
 
 ------------------------------------------------------------------------------
--- | Environment variable getter
-getE
-  :: forall a . (Var a)
-  => String
-  -> Parser a
-getE k = do
-  result <- liftIO (lookupEnv k)
+-- | Environment variable getter. Fails if the variable is not set or
+-- fails to parse.
+env :: Var a
+    => String   -- ^ Key to look up.
+    -> Parser a -- ^ Return a value of this type or throw an error.
+env key = do
+  result <- liftIO (lookupEnv key)
   case result of
-    Nothing -> throwError $ "Variable not found for: " ++ k
+    Nothing -> throwError $ "Variable not found for: " ++ key
     Just dv ->
-      case fromVar dv :: Maybe a of
-        Nothing -> throwError $ "Parse failure: field <name> is not of type: "
-                     ++ show (typeOf dv)
+      case fromVar dv of
+        Nothing -> throwError $ ("Parse failure: could not parse variable "
+                                 ++ show key ++ " into type "
+                                 ++ show (typeOf dv))
         Just x -> return x
 
 ------------------------------------------------------------------------------
--- | Environment variable getter
-env :: forall a. (Var a)
-    => String
-    -> Parser a
-env = getE
-
-------------------------------------------------------------------------------
 -- | Environment variable getter returning `Maybe`
-getEMaybe
-  :: forall a . (Var a)
-  => String
-  -> Parser (Maybe a)
-getEMaybe k = do
-  val <- liftIO (lookupEnv k)
+envMaybe :: Var a
+         => String           -- ^ Key to look up.
+         -> Parser (Maybe a) -- ^ Return `Nothing` if variable isn't set.
+envMaybe key = do
+  val <- liftIO (lookupEnv key)
   return $ case val of
    Nothing -> Nothing
    Just x -> fromVar x
 
 ------------------------------------------------------------------------------
--- | Environment variable getter returning `Maybe`
-envMaybe :: forall a. (Var a)
-  => String
-  -> Parser (Maybe a)
-envMaybe = getEMaybe
-
-------------------------------------------------------------------------------
--- | For use with (.:?) for providing default arguments
-(.!=) :: Parser (Maybe a)
-  -> a
-  -> Parser a
-(.!=) p x  = fmap (fromMaybe x) p
+-- | For use with `envMaybe` for providing default arguments.
+(.!=) :: Parser (Maybe a) -- ^ Parser that might fail.
+      -> a                -- ^ Value to return if the parser fails.
+      -> Parser a         -- ^ Parser that returns the default on failure.
+(.!=) parser def  = fromMaybe def <$> parser
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable setter
 -- Smart constructor for producing types of `EnvVar`
 (.=) :: Var a
-     => String
-     -> a
-     -> EnvVar
-(.=) x y = EnvVar (x, toVar y)
+     => String -- ^ The variable name to set.
+     -> a      -- ^ Object to set in the environment.
+     -> EnvVar -- ^ Mapping of Variable to Value.
+(.=) variableName value = EnvVar variableName (toVar value)
 
 ------------------------------------------------------------------------------
 -- | `FromEnv` Typeclass w/ Generic default implementation
@@ -179,15 +172,18 @@ class FromEnv a where
 -- > instance FromEnv PGConfig where
 -- >   fromEnv = gFromEnvCustom Option { dropPrefixCount = 8, customPrefix = "PG" }
 --
-gFromEnvCustom :: forall a . (DefConfig a, Generic a, GFromEnv (Rep a)) => Option -> Parser a
+gFromEnvCustom :: forall a. (DefConfig a, Generic a, GFromEnv (Rep a))
+               => Option
+               -> Parser a
 gFromEnvCustom opts = to <$> gFromEnv (from (defConfig :: a)) opts
+
 ------------------------------------------------------------------------------
 -- | `Generic` FromEnv
 class GFromEnv f where
   gFromEnv :: f a -> Option -> Parser (f a)
 
 ------------------------------------------------------------------------------
--- | Default Config
+-- | Type class for objects which have a default configuration.
 class DefConfig a where defConfig :: a
 
 ------------------------------------------------------------------------------
@@ -209,11 +205,13 @@ instance (GFromEnv a, GFromEnv b) => GFromEnv (a :*: b) where
 
 ------------------------------------------------------------------------------
 -- | Don't absorb meta data
-instance GFromEnv a => GFromEnv (C1 i a) where gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
+instance GFromEnv a => GFromEnv (C1 i a) where
+  gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
 
 ------------------------------------------------------------------------------
 -- | Don't absorb meta data
-instance GFromEnv a => GFromEnv (D1 i a) where gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
+instance GFromEnv a => GFromEnv (D1 i a) where
+  gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
 
 ------------------------------------------------------------------------------
 -- | Construct a `Parser` from a `selName` and `DefConfig` record field
@@ -243,22 +241,29 @@ instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
       snake = map toUpper . snakeCase
 
 ------------------------------------------------------------------------------
--- | ToEnv Typeclass
-class ToEnv a where toEnv :: a -> EnvList a
+-- | Type class for objects which can be converted to a set of
+-- environment variable settings.
+class ToEnv a where
+  -- | Convert an object into a list of environment variable settings.
+  toEnv :: a -> EnvList a
 
 ------------------------------------------------------------------------------
--- | EnvList type w/ phanton
+-- | List of environment variables. Captures a "phantom type" which
+-- allows the type checker to detect the proper implementation of toEnv
+-- to use.
 data EnvList a = EnvList [EnvVar] deriving (Show)
 
 ------------------------------------------------------------------------------
--- | smart constructor, Environment creation helper
+-- | Smart constructor, environment creation helper.
 makeEnv :: [EnvVar] -> EnvList a
 makeEnv = EnvList
 
 ------------------------------------------------------------------------------
 -- | Class for converting to / from an environment variable
-class Var a where
+class Typeable a => Var a where
+  -- | Convert a value into an environment variable.
   toVar   :: a -> String
+  -- | Parse an environment variable.
   fromVar :: String -> Maybe a
 
 ------------------------------------------------------------------------------
@@ -290,19 +295,23 @@ decodeEnv = evalParser fromEnv
 ------------------------------------------------------------------------------
 -- | Environment retrieval (with no failure info)
 decode :: FromEnv a => IO (Maybe a)
-decode = fmap f decodeEnv
+decode = fmap eitherToMaybe decodeEnv
   where
-    f (Left _)  = Nothing
-    f (Right x) = Just x
+    eitherToMaybe (Left _)  = Nothing
+    eitherToMaybe (Right x) = Just x
+
+------------------------------------------------------------------------------
+-- | Catch an IO exception and return it in an Either.
+wrapIOException :: IO a -> IO (Either String a)
+wrapIOException action = try action >>= \case
+  Left (ex :: IOException) -> return $ Left $ show ex
+  Right x -> return $ Right x
 
 ------------------------------------------------------------------------------
 -- | Set environment via a ToEnv constrained type
 setEnvironment :: EnvList a -> IO (Either String ())
-setEnvironment (EnvList xs) = do
-  result <- try $ mapM_ (uncurry setEnv . getEnvVar) xs
-  return $ case result of
-   Left (ex :: IOException) -> Left (show ex)
-   Right () -> Right ()
+setEnvironment (EnvList envVars) = wrapIOException $ mapM_ set envVars
+  where set var = setEnv (variableName var) (variableValue var)
 
 ------------------------------------------------------------------------------
 -- | Set environment directly using a value of class ToEnv
@@ -312,11 +321,13 @@ setEnvironment' = setEnvironment . toEnv
 ------------------------------------------------------------------------------
 -- | Unset Environment from a `ToEnv` constrained type
 unsetEnvironment :: EnvList a -> IO (Either String ())
-unsetEnvironment (EnvList xs) = do
-  result <- try $ mapM_ (unsetEnv . fst . getEnvVar) xs
-  return $ case result of
-   Left (ex :: IOException) -> Left (show ex)
-   Right () -> Right ()
+unsetEnvironment (EnvList envVars) = wrapIOException $ mapM_ unset envVars
+  where unset var = unsetEnv (variableName var)
+
+------------------------------------------------------------------------------
+-- | Unset Environment using a value of class ToEnv
+unsetEnvironment' :: ToEnv a => a -> IO (Either String ())
+unsetEnvironment' = unsetEnvironment . toEnv
 
 ------------------------------------------------------------------------------
 -- | Display all environment variables, for convenience

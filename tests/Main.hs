@@ -4,7 +4,6 @@
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
-import           Control.Applicative
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import           Data.Int
@@ -55,8 +54,8 @@ instance Show PGConfig where
 instance FromEnv PGConfig where
   fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
                                       <*> env "PG_PORT"
-                                      <*> env "PG_USER" 
-                                      <*> env "PG_PASS" 
+                                      <*> env "PG_USER"
+                                      <*> env "PG_PASS"
                                       <*> env "PG_DB")
 
 ------------------------------------------------------------------------------
@@ -74,37 +73,37 @@ instance ToEnv PGConfig where
 ------------------------------------------------------------------------------
 -- | Start tests
 main :: IO ()
-main = hspec $ do 
+main = hspec $ do
   describe "Var ismorphisms hold" $ do
-    it "Word8 Var isomorphism" $ property $ 
+    it "Word8 Var isomorphism" $ property $
      \(x :: Word8) -> Just x == fromVar (toVar x)
-    it "Word16 Var isomorphism" $ property $ 
+    it "Word16 Var isomorphism" $ property $
      \(x :: Word16) -> Just x == fromVar (toVar x)
-    it "Word32 Var isomorphism" $ property $ 
+    it "Word32 Var isomorphism" $ property $
      \(x :: Word32) -> Just x == fromVar (toVar x)
-    it "Int Var isomorphism" $ property $ 
+    it "Int Var isomorphism" $ property $
      \(x :: Int) -> Just x == fromVar (toVar x)
-    it "Int8 Var isomorphism" $ property $ 
+    it "Int8 Var isomorphism" $ property $
      \(x :: Int8) -> Just x == fromVar (toVar x)
-    it "Int16 Var isomorphism" $ property $ 
+    it "Int16 Var isomorphism" $ property $
      \(x :: Int16) -> Just x == fromVar (toVar x)
-    it "Int32 Var isomorphism" $ property $ 
+    it "Int32 Var isomorphism" $ property $
      \(x :: Int32) -> Just x == fromVar (toVar x)
-    it "Int64 Var isomorphism" $ property $ 
+    it "Int64 Var isomorphism" $ property $
      \(x :: Int64) -> Just x == fromVar (toVar x)
-    it "String Var isomorphism" $ property $ 
+    it "String Var isomorphism" $ property $
      \(x :: String) -> Just x == fromVar (toVar x)
-    it "Double Var isomorphism" $ property $ 
+    it "Double Var isomorphism" $ property $
      \(x :: Double) -> Just x == fromVar (toVar x)
-    it "UTCTime Var isomorphism" $ property $ 
+    it "UTCTime Var isomorphism" $ property $
      \(x :: UTCTime) -> Just x == fromVar (toVar x)
-    it "ByteString Var isomorphism" $ property $ 
+    it "ByteString Var isomorphism" $ property $
      \(x :: B8.ByteString) -> Just x == fromVar (toVar x)
-    it "ByteString Var isomorphism" $ property $ 
+    it "ByteString Var isomorphism" $ property $
      \(x :: BL8.ByteString) -> Just x == fromVar (toVar x)
-    it "Lazy Text Var isomorphism" $ property $ 
+    it "Lazy Text Var isomorphism" $ property $
      \(x :: LT.Text) -> Just x == fromVar (toVar x)
-    it "Text Var isomorphism" $ property $ 
+    it "Text Var isomorphism" $ property $
      \(x :: T.Text) -> Just x == fromVar (toVar x)
   describe "Can set to and from environment" $
     it "Isomorphism through setEnvironment['] and decodeEnv" $ property $
