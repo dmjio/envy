@@ -60,7 +60,7 @@ connectInfo = ConnectInfo
 ```
 This abstraction falls short in two areas:
   - Lookups don't return any information when a variable doesn't exist (just a `Nothing`)
-  - Lookups don't attempt to parse the returned type into something meaningful (everything is returned as a `String`)
+  - Lookups don't attempt to parse the returned type into something meaningful (everything is returned as a `String` because `lookupEnv :: String -> IO (Maybe String)`)
 
 What if we could apply aeson's `FromJSON` / `ToJSON` pattern to give us variable lookups that provide both key-lookup and parse failure information?
 Armed with the `GeneralizedNewTypeDeriving` extension we can derive instances of `Var` that will parse to and from an environment variable. The `Var` typeclass is simply:
