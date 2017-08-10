@@ -286,6 +286,7 @@ instance Var Word16 where toVar = show; fromVar = readMaybe
 instance Var Word32 where toVar = show; fromVar = readMaybe
 instance Var Word64 where toVar = show; fromVar = readMaybe
 instance Var String where toVar = id; fromVar = Just
+instance Var () where toVar = const "()"; fromVar = const $ Just ()
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info

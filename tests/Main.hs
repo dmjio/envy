@@ -105,6 +105,8 @@ main = hspec $ do
      \(x :: LT.Text) -> Just x == fromVar (toVar x)
     it "Text Var isomorphism" $ property $
      \(x :: T.Text) -> Just x == fromVar (toVar x)
+    it "() Var isomorphism" $ property $
+     \(x :: ()) -> Just x == fromVar (toVar x)
   describe "Can set to and from environment" $
     it "Isomorphism through setEnvironment['] and decodeEnv" $ property $
       \(pgConf::PGConfig) -> monadicIO $ do
