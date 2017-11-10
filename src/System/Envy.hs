@@ -49,6 +49,7 @@ module System.Envy
        , ToEnv   (..)
        , Var     (..)
        , EnvList
+       , Parser
         -- * Functions
        , decodeEnv
        , decode
@@ -67,6 +68,7 @@ module System.Envy
        , Option (..)
        , runEnv
        , gFromEnvCustom
+       , runParser
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
