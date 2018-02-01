@@ -10,9 +10,9 @@ let
              };
            };
          };
-      };
-   };
-};
+       };
+    };
+ };
 in
   with (import <nixpkgs> { inherit config; }).haskell.packages.${compiler};
   envy
