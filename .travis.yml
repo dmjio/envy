@@ -5,7 +5,7 @@ matrix:
   include:
     - env: GHCVER=ghc7102
     - env: GHCVER=ghc7103
-    - env: GHCVER=ghc801
+    - env: GHCVER=ghc822
     - env: GHCVER=ghc802
     - env: GHCVER=ghc742
     - env: GHCVER=ghc763
@@ -26,4 +26,4 @@ before_install:
  - nix-channel --update
 
 script:
- - nix-build -A envy --argstr compiler $GHCVER
+ - nix-build --argstr compiler $GHCVER

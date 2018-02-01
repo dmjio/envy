@@ -1,14 +1,18 @@
-{ compiler ? "ghc802" }:
-  let
+{ compiler ? "ghc822" }:
+let
    config = {
      packageOverrides = pkgs: with pkgs.haskell.lib; {
-       haskell.packages.${compiler} = pkgs.haskell.packages.${compiler}.override {
-          overrides = self: super: rec {
-            envy = buildStrictly (self.callPackage ./envy.nix {});
-          };
-        };
+       haskell = pkgs.haskell // {
+         packages = pkgs.haskell.packages // {
+	   ${compiler} = pkgs.haskell.packages.${compiler}.override {
+	     overrides = self: super: {
+	       envy = buildStrictly (self.callPackage ./envy.nix {});
+             };
+           };
+         };
       };
    };
-   in with (import <nixpkgs> { inherit config; }).haskell.packages.${compiler}; { 
-     inherit envy;
-   }
+};
+in
+  with (import <nixpkgs> { inherit config; }).haskell.packages.${compiler};
+  envy
