@@ -37,10 +37,10 @@ test-suite spec
     build-depends:      base
                       , bytestring
                       , envy
-                      , hspec                >= 2.2 && < 2.5
+                      , hspec
                       , mtl
-                      , quickcheck-instances == 0.3.*
-                      , QuickCheck           >= 2.8 && < 2.10
+                      , quickcheck-instances
+                      , QuickCheck
                       , text
                       , time
                       , transformers
