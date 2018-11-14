@@ -3,23 +3,16 @@ language: nix
 matrix:
   fast_finish: true
   include:
-    - env: GHCVER=ghc7102
-    - env: GHCVER=ghc7103
+    - env: GHCVER=ghcHEAD
+    - env: GHCVER=ghc861
+    - env: GHCVER=ghc844
     - env: GHCVER=ghc822
     - env: GHCVER=ghc802
-    - env: GHCVER=ghc742
-    - env: GHCVER=ghc763
-    - env: GHCVER=ghc783
-    - env: GHCVER=ghc784
-    - env: GHCVER=ghcHEAD
+
   allow_failures:
-    - env: GHCVER=ghc742
-    - env: GHCVER=ghc763
-    - env: GHCVER=ghc783
-    - env: GHCVER=ghc784
-    - env: GHCVER=ghc7102
-    - env: GHCVER=ghc7103
     - env: GHCVER=ghcHEAD
+    - env: GHCVER=ghc822
+    - env: GHCVER=ghc802
 
 before_install:
  - nix-channel --list
