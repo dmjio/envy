@@ -68,7 +68,6 @@ module System.Envy
        , Option (..)
        , runEnv
        , gFromEnvCustom
-       , runParser
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
