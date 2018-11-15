@@ -1,10 +1,10 @@
 envy
 ===================
-![Hackage](https://img.shields.io/hackage/v/envy.svg)
-![Hackage Dependencies](https://img.shields.io/hackage-deps/v/envy.svg)
+[![Hackage](https://img.shields.io/hackage/v/envy.svg)](https://hackage.haskell.org/package/envy)
+[![Hackage Dependencies](https://img.shields.io/hackage-deps/v/envy.svg)](https://packdeps.haskellers.com/feed?needle=envy)
 ![Haskell Programming Language](https://img.shields.io/badge/language-Haskell-blue.svg)
 ![BSD3 License](http://img.shields.io/badge/license-BSD3-brightgreen.svg)
-![Build Status](https://img.shields.io/circleci/project/dmjio/envy.svg)
+[![Build Status](https://travis-ci.org/dmjio/envy.svg?branch=master)](https://travis-ci.org/dmjio/envy)
 
 Let's face it, dealing with environment variables in Haskell isn't that satisfying.
 
