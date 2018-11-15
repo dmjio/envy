@@ -4,7 +4,7 @@
 }:
 mkDerivation {
   pname = "envy";
-  version = "1.5.0.0";
+  version = "1.5.1.0";
   src = ./.;
   libraryHaskellDepends = [
     base bytestring containers mtl text time transformers
