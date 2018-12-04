@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DeriveGeneric              #-}
 ------------------------------------------------------------------------------
 module Main ( main ) where
 ------------------------------------------------------------------------------
@@ -11,6 +12,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import           Data.Time
 import           Data.Word
+import           GHC.Generics
 import           System.Envy
 import           Test.Hspec
 import           Test.QuickCheck
@@ -23,7 +25,12 @@ data ConnectInfo = ConnectInfo {
     , pgUser :: String
     , pgPass :: String
     , pgDB   :: String
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic)
+
+
+instance DefConfig ConnectInfo where
+  defConfig = ConnectInfo "localhost" 5432 "user" "pass" "db"
+instance FromEnv ConnectInfo
 
 instance Arbitrary ConnectInfo where
     arbitrary = ConnectInfo <$> nonulls
@@ -114,3 +121,17 @@ main = hspec $ do
                  _ <- setEnvironment' pgConf
                  decodeEnv
         assert $ res == Right pgConf
+  describe "Can use generic FromEnv" $
+    it "Isomorphism through setEnvironment and decodeEnv" $ property $
+      \(ci::ConnectInfo) -> monadicIO $ do
+        res <- run $ do
+                 let ConnectInfo{..} = ci
+                 _ <- setEnvironment $
+                          makeEnv [ "PG_HOST" .= pgHost
+                                  , "PG_PORT" .= pgPort
+                                  , "PG_USER" .= pgUser
+                                  , "PG_PASS" .= pgPass
+                                  , "PG_DB"   .= pgDB
+                                  ]
+                 decodeEnv
+        assert $ res == Right ci
