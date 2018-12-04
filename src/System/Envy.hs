@@ -9,6 +9,8 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE KindSignatures             #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : System.Envy
@@ -46,12 +48,14 @@
 module System.Envy
        ( -- * Classes
          FromEnv (..)
+       , FromEnvNoDefault (..)
        , ToEnv   (..)
        , Var     (..)
        , EnvList
        , Parser  (..)
         -- * Functions
        , decodeEnv
+       , decodeEnvNoDefault
        , decode
        , showEnv
        , setEnvironment
@@ -68,6 +72,7 @@ module System.Envy
        , Option (..)
        , runEnv
        , gFromEnvCustom
+       , gFromEnvNoDefaultCustom
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
@@ -78,7 +83,7 @@ import           Data.Char
 import           Data.Time
 import           GHC.Generics
 import           Data.Typeable
-import           System.Environment
+import           System.Environment.Blank
 import           Text.Read (readMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -123,7 +128,7 @@ env :: Var a
     => String   -- ^ Key to look up.
     -> Parser a -- ^ Return a value of this type or throw an error.
 env key = do
-  result <- liftIO (lookupEnv key)
+  result <- liftIO (getEnv key)
   case result of
     Nothing -> throwError $ "Variable not found for: " ++ key
     Just dv ->
@@ -139,7 +144,7 @@ envMaybe :: Var a
          => String           -- ^ Key to look up.
          -> Parser (Maybe a) -- ^ Return `Nothing` if variable isn't set.
 envMaybe key = do
-  val <- liftIO (lookupEnv key)
+  val <- liftIO (getEnv key)
   return $ case val of
    Nothing -> Nothing
    Just x -> fromVar x
@@ -241,6 +246,74 @@ instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
       snake :: String -> String
       snake = map toUpper . snakeCase
 
+
+------------------------------------------------------------------------------
+-- | `FromEnv` Typeclass w/ Generic default implementation
+class FromEnvNoDefault a where
+  fromEnvNoDefault :: Parser a
+  default fromEnvNoDefault :: (Generic a, GFromEnvMaybe (Rep a)) => Parser a
+  fromEnvNoDefault = gFromEnvNoDefaultCustom defOption
+
+------------------------------------------------------------------------------
+-- | Meant for specifying a custom `Option` for environment retrieval
+--
+-- > instance FromEnvMaybe PGConfig where
+-- >   fromEnvMaybe = gFromEnvNoDefaultCustom Option { dropPrefixCount = 8, customPrefix = "PG" }
+--
+gFromEnvNoDefaultCustom :: forall a. (Generic a, GFromEnvMaybe (Rep a))
+               => Option
+               -> Parser a
+gFromEnvNoDefaultCustom opts = to <$> gFromEnvNoDefault opts
+
+------------------------------------------------------------------------------
+-- | `Generic` FromEnvMaybe
+class GFromEnvMaybe f where
+  gFromEnvNoDefault :: Option -> Parser (f a)
+
+------------------------------------------------------------------------------
+-- | Products
+instance (GFromEnvMaybe a, GFromEnvMaybe b) => GFromEnvMaybe (a :*: b) where
+  gFromEnvNoDefault opts = liftA2 (:*:) (gFromEnvNoDefault opts) (gFromEnvNoDefault opts)
+
+------------------------------------------------------------------------------
+-- | Don't absorb meta data
+instance GFromEnvMaybe a => GFromEnvMaybe (C1 i a) where
+  gFromEnvNoDefault opts = M1 <$> gFromEnvNoDefault opts
+
+------------------------------------------------------------------------------
+-- | Don't absorb meta data
+instance GFromEnvMaybe a => GFromEnvMaybe (D1 i a) where
+  gFromEnvNoDefault opts = M1 <$> gFromEnvNoDefault opts
+
+data SelectorProxy (s :: Meta) (f :: * -> *) a = SelectorProxy
+------------------------------------------------------------------------------
+-- | Construct a `Parser` from a `selName` and `DefConfig` record field
+instance (Selector s, Var a) => GFromEnvMaybe (S1 s (K1 i a)) where
+  gFromEnvNoDefault opts = M1 . K1 <$> env envName
+    where
+      envName = toEnvName opts $ selName (SelectorProxy :: SelectorProxy s Proxy ())
+
+      toEnvName :: Option -> String -> String
+      toEnvName Option{..} xs =
+        let name = snake (drop dropPrefixCount xs)
+        in if customPrefix == mempty
+             then name
+             else map toUpper customPrefix ++ "_" ++ name
+
+      applyFirst :: (Char -> Char) -> String -> String
+      applyFirst _ []     = []
+      applyFirst f [x]    = [f x]
+      applyFirst f (x:xs) = f x: xs
+
+      snakeCase :: String -> String
+      snakeCase = u . applyFirst toLower
+        where u []                 = []
+              u (x:xs) | isUpper x = '_' : toLower x : snakeCase xs
+                       | otherwise = x : u xs
+
+      snake :: String -> String
+      snake = map toUpper . snakeCase
+
 ------------------------------------------------------------------------------
 -- | Type class for objects which can be converted to a set of
 -- environment variable settings.
@@ -299,6 +372,11 @@ decodeEnv :: FromEnv a => IO (Either String a)
 decodeEnv = evalParser fromEnv
 
 ------------------------------------------------------------------------------
+-- | Environment retrieval with failure info
+decodeEnvNoDefault :: FromEnvNoDefault a => IO (Either String a)
+decodeEnvNoDefault = evalParser fromEnvNoDefault
+
+------------------------------------------------------------------------------
 -- | Environment retrieval (with no failure info)
 decode :: FromEnv a => IO (Maybe a)
 decode = fmap eitherToMaybe decodeEnv
@@ -317,7 +395,7 @@ wrapIOException action = try action >>= \case
 -- | Set environment via a ToEnv constrained type
 setEnvironment :: EnvList a -> IO (Either String ())
 setEnvironment (EnvList envVars) = wrapIOException $ mapM_ set envVars
-  where set var = setEnv (variableName var) (variableValue var)
+  where set var = setEnv (variableName var) (variableValue var) True
 
 ------------------------------------------------------------------------------
 -- | Set environment directly using a value of class ToEnv
