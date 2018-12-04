@@ -78,7 +78,7 @@ import           Data.Char
 import           Data.Time
 import           GHC.Generics
 import           Data.Typeable
-import           System.Environment
+import           System.Environment.Blank
 import           Text.Read (readMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -123,7 +123,7 @@ env :: Var a
     => String   -- ^ Key to look up.
     -> Parser a -- ^ Return a value of this type or throw an error.
 env key = do
-  result <- liftIO (lookupEnv key)
+  result <- liftIO (getEnv key)
   case result of
     Nothing -> throwError $ "Variable not found for: " ++ key
     Just dv ->
@@ -139,7 +139,7 @@ envMaybe :: Var a
          => String           -- ^ Key to look up.
          -> Parser (Maybe a) -- ^ Return `Nothing` if variable isn't set.
 envMaybe key = do
-  val <- liftIO (lookupEnv key)
+  val <- liftIO (getEnv key)
   return $ case val of
    Nothing -> Nothing
    Just x -> fromVar x
@@ -317,7 +317,7 @@ wrapIOException action = try action >>= \case
 -- | Set environment via a ToEnv constrained type
 setEnvironment :: EnvList a -> IO (Either String ())
 setEnvironment (EnvList envVars) = wrapIOException $ mapM_ set envVars
-  where set var = setEnv (variableName var) (variableValue var)
+  where set var = setEnv (variableName var) (variableValue var) True
 
 ------------------------------------------------------------------------------
 -- | Set environment directly using a value of class ToEnv

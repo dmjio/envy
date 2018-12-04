@@ -8,6 +8,7 @@ module Main ( main ) where
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import           Data.Int
+import           Data.List (isInfixOf)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import           Data.Time
@@ -114,13 +115,19 @@ main = hspec $ do
      \(x :: T.Text) -> Just x == fromVar (toVar x)
     it "() Var isomorphism" $ property $
      \(x :: ()) -> Just x == fromVar (toVar x)
-  describe "Can set to and from environment" $
+  describe "Can set to and from environment" $ do
     it "Isomorphism through setEnvironment['] and decodeEnv" $ property $
       \(pgConf::PGConfig) -> monadicIO $ do
         res <- run $ do
                  _ <- setEnvironment' pgConf
                  decodeEnv
         assert $ res == Right pgConf
+    it "Storing and retrieving var" $ property $
+      \(x::String) -> monadicIO $ do
+        res <- run $ do
+                 _ <- setEnvironment $ makeEnv [ "HSPECENVY_" .= toVar x]
+                 runEnv $ env  "HSPECENVY_"
+        assert $ if isInfixOf "\NUL" x then True else res == Right x
   describe "Can use generic FromEnv" $
     it "Isomorphism through setEnvironment and decodeEnv" $ property $
       \(ci::ConnectInfo) -> monadicIO $ do
