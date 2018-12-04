@@ -49,7 +49,7 @@ instance DefConfig ConnectInfo where
   defConfig = ConnectInfo "localhost" 5432 "user" "pass" "db"
 
 -- | Generic instance with default values
-instance FromEnvDefault ConnectInfo
+instance FromEnv ConnectInfo
 
 instance Arbitrary ConnectInfo where
     arbitrary = ConnectInfo <$> nonulls
@@ -78,11 +78,11 @@ instance Show PGConfig where
 -- | FromEnv Instances, supports popular aeson combinators *and* IO
 -- for dealing with connection pools
 instance FromEnv PGConfig where
-  fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
-                                      <*> env "PG_PORT"
-                                      <*> env "PG_USER"
-                                      <*> env "PG_PASS"
-                                      <*> env "PG_DB")
+  fromEnv _ = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
+                                        <*> env "PG_PORT"
+                                        <*> env "PG_USER"
+                                        <*> env "PG_PASS"
+                                        <*> env "PG_DB")
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
@@ -158,8 +158,8 @@ main = hspec $ do
                                   , "PG_PASS" .= pgPass
                                   , "PG_DB"   .= pgDB
                                   ]
-                 decodeEnvDefault
-        assert $ res == Right ci
+                 decodeWithDefaults (defConfig :: ConnectInfo)
+        assert $ res == ci
   describe "Can use generic FromEnvNoDefault" $
     it "Isomorphism through setEnvironment and decodeEnv" $ property $
       \(u::UserInfo) -> monadicIO $ do
