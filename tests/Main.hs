@@ -30,7 +30,7 @@ data UserInfo = UserInfo {
 
 
 -- | Generic instance
-instance FromEnvNoDefault UserInfo
+instance FromEnv UserInfo
 
 instance Arbitrary UserInfo where
   arbitrary = UserInfo <$> arbitrary <*> arbitrary
@@ -48,8 +48,8 @@ data ConnectInfo = ConnectInfo {
 instance DefConfig ConnectInfo where
   defConfig = ConnectInfo "localhost" 5432 "user" "pass" "db"
 
--- | Generic instance
-instance FromEnv ConnectInfo
+-- | Generic instance with default values
+instance FromEnvDefault ConnectInfo
 
 instance Arbitrary ConnectInfo where
     arbitrary = ConnectInfo <$> nonulls
@@ -158,17 +158,16 @@ main = hspec $ do
                                   , "PG_PASS" .= pgPass
                                   , "PG_DB"   .= pgDB
                                   ]
-                 decodeEnv
+                 decodeEnvDefault
         assert $ res == Right ci
   describe "Can use generic FromEnvNoDefault" $
     it "Isomorphism through setEnvironment and decodeEnv" $ property $
       \(u::UserInfo) -> monadicIO $ do
-        let u = UserInfo "nicolas" 99
         res <- run $ do
                  let UserInfo{..} = u
                  _ <- setEnvironment $
                           makeEnv [ "USER_NAME" .= (userName ++ "")
                                   , "USER_AGE" .= userAge
                                   ]
-                 decodeEnvNoDefault
-        assert $ res == Right u
+                 decodeEnv
+        assert $  if isInfixOf "\NUL" (userName u) then True else res == Right u
