@@ -69,6 +69,7 @@ module System.Envy
          -- * Generics
        , DefConfig (..)
        , Option (..)
+       , defOption
        , runEnv
        , gFromEnvCustom
        ) where

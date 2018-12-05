@@ -96,6 +96,7 @@ instance ToEnv PGConfig where
                                , "PG_DB"   .= pgDB
                                ]
 
+
 ------------------------------------------------------------------------------
 -- | Start tests
 main :: IO ()
@@ -171,3 +172,5 @@ main = hspec $ do
                                   ]
                  decodeEnv
         assert $  if isInfixOf "\NUL" (userName u) then True else res == Right u
+
+

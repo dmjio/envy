@@ -101,7 +101,7 @@ data ConnectInfo = ConnectInfo {
 -- for dealing with connection pool initialization. `env` is equivalent to (.:) in `aeson`
 -- and `envMaybe` is equivalent to (.:?), except here the lookups are impure.
 instance FromEnv ConnectInfo where
-  fromEnv =
+  fromEnv _ =
     ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
 		<*> env "PG_PORT"
 		<*> env "PG_USER"
@@ -130,6 +130,27 @@ main = do
    -- unsetEnvironment (toEnv :: EnvList ConnectInfo)  -- remove when done
 ```
 
+Our parser might also make use a set of an optional default values provided by the user, 
+for dealing with errors when reading from the environment
+
+```haskell
+instance FromEnv ConnectInfo where
+  fromEnv Nothing = 
+    ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
+		<*> env "PG_PORT"
+		<*> env "PG_USER"
+		<*> env "PG_PASS"
+		<*> env "PG_DB"
+        
+  fromEnv (Just def) = 
+    ConnectInfo <$> envMaybe "PG_HOST" .!= (pgHost def)
+		<*> envMaybe "PG_PORT" .!= (pgPort def)
+		<*> env "PG_USER" .!= (pgUser def)
+		<*> env "PG_PASS" .!= (pgPass def) 
+		<*> env "PG_DB" .!= (pgDB def)
+```
+
+
 *Note*: As of base 4.7 `setEnv` and `getEnv` throw an `IOException` if a `=` is present in an environment. `envy` catches these synchronous exceptions and delivers them
 purely to the end user.
 
@@ -144,6 +165,7 @@ module Main where
 
 import System.Envy
 import GHC.Generics
+import System.Environment.Blank
 
 -- This record corresponds to our environment, where the field names become the variable names, and the values the environment variable value
 data PGConfig = PGConfig {
@@ -151,16 +173,29 @@ data PGConfig = PGConfig {
   , pgPort :: Int    -- "PG_PORT"
   } deriving (Generic, Show)
 
--- Default configuration will be used for fields that could not be retrieved from the environment
-instance DefConfig PGConfig where
-  defConfig = PGConfig "localhost" 5432
-
 instance FromEnv PGConfig
 -- Generically creates instance for retrieving environment variables (PG_HOST, PG_PORT)
 
 main :: IO ()
+main = do
+  _ <- setEnv "PG_HOST" "valueFromEnv" True
+  _ <- setEnv "PG_PORT"  "66354651" True
+  print =<< do decodeEnv :: IO (Either String PGConfig)
+ -- > PGConfig { pgHost = "valueFromEnv", pgPort = 66354651 }
+```
+
+If the variables are not found in the environment, the parser will currently fail with an error about the first missing field.
+
+The user can decide to provide a default value, whose fields will be used by the generic instance, if retrieving them from the environment fails.
+
+```haskell
+defConfig :: PGConfig
+defConfig = PGConfig "localhost" 5432
+
+main :: IO ()
 main =
-  print =<< decodeEnv :: IO (Either String PGConfig)
+  _ <- setEnv "PG_HOST" "customURL" True
+  print =<< decodeWithDefaults defConfig :: IO (Either String PGConfig)
  -- > PGConfig { pgHost = "customURL", pgPort = 5432 }
 ```
 
@@ -183,14 +218,15 @@ instance DefConfig PGConfig where
 
 -- All fields will be converted to uppercase
 instance FromEnv PGConfig where
-  fromEnv = fromEnvCustom Option {
+  fromEnv = gFromEnvCustom Option {
                     dropPrefixCount = 7
-                  , customPrefix = "PG"
+                  , customPrefix = "CUSTOM"
 		  }
 
 main :: IO ()
 main =
-  print =<< decodeEnv :: IO (Either String PGConfig)
+  _ <- setEnv "CUSTOM_HOST" "customUrl" True
+  print =<< do decodeEnv :: IO (Either String PGConfig)
  -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
 ```
 
@@ -208,18 +244,12 @@ data PGConfig = PGConfig {
   , connectPort :: Int    -- "PG_PORT"
   } deriving (Generic, Show)
 
--- Default PGConfig
-instance DefConfig PGConfig where
-  defConfig = PGConfig "localhost" 5432
-
 -- All fields will be converted to uppercase
 getPGEnv :: IO (Either String PGConfig)
-getPGEnv = runEnv $ gFromEnvCustom Option {
-                    dropPrefixCount = 7
-                  , customPrefix = "PG"
-		  }
+getPGEnv = runEnv $ gFromEnvCustom defOption
+                                   (Just (PGConfig "localhost" 5432))
 
 main :: IO ()
 main = print =<< getPGEnv
- -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
+ -- PGConfig { pgHost = "localhost", pgPort = 5432 }
 ```
