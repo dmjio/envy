@@ -49,6 +49,7 @@ module System.Envy
        , ToEnv   (..)
        , Var     (..)
        , EnvList (..)
+       , EnvVar  (..)
        , Parser  (..)
         -- * Functions
        , decodeEnv
