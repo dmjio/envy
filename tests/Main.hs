@@ -172,5 +172,3 @@ main = hspec $ do
                                   ]
                  decodeEnv
         assert $  if isInfixOf "\NUL" (userName u) then True else res == Right u
-
-
