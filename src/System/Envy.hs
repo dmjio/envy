@@ -9,6 +9,8 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE KindSignatures             #-}
 ------------------------------------------------------------------------------
 -- |
 -- Module      : System.Envy
@@ -53,6 +55,7 @@ module System.Envy
        , Parser  (..)
         -- * Functions
        , decodeEnv
+       , decodeWithDefaults
        , decode
        , showEnv
        , setEnvironment
@@ -67,6 +70,7 @@ module System.Envy
          -- * Generics
        , DefConfig (..)
        , Option (..)
+       , defOption
        , runEnv
        , gFromEnvCustom
        ) where
@@ -164,25 +168,25 @@ envMaybe key = do
 ------------------------------------------------------------------------------
 -- | `FromEnv` Typeclass w/ Generic default implementation
 class FromEnv a where
-  fromEnv :: Parser a
-  default fromEnv :: (DefConfig a, Generic a, GFromEnv (Rep a)) => Parser a
-  fromEnv = gFromEnvCustom defOption
+  fromEnv :: Maybe a -> Parser a
+  default fromEnv :: (Generic a, GFromEnv (Rep a)) => Maybe a -> Parser a
+  fromEnv oa = gFromEnvCustom defOption oa
 
 ------------------------------------------------------------------------------
 -- | Meant for specifying a custom `Option` for environment retrieval
 --
 -- > instance FromEnv PGConfig where
 -- >   fromEnv = gFromEnvCustom Option { dropPrefixCount = 8, customPrefix = "PG" }
---
-gFromEnvCustom :: forall a. (DefConfig a, Generic a, GFromEnv (Rep a))
+gFromEnvCustom :: forall a. (Generic a, GFromEnv (Rep a))
                => Option
+               -> Maybe a
                -> Parser a
-gFromEnvCustom opts = to <$> gFromEnv (from (defConfig :: a)) opts
+gFromEnvCustom opts oa = to <$> gFromEnv opts (from <$> oa)
 
 ------------------------------------------------------------------------------
 -- | `Generic` FromEnv
 class GFromEnv f where
-  gFromEnv :: f a -> Option -> Parser (f a)
+  gFromEnv :: Option -> Maybe (f a) ->  Parser (f a)
 
 ------------------------------------------------------------------------------
 -- | Type class for objects which have a default configuration.
@@ -203,24 +207,34 @@ defOption = Option 0 mempty
 ------------------------------------------------------------------------------
 -- | Products
 instance (GFromEnv a, GFromEnv b) => GFromEnv (a :*: b) where
-  gFromEnv (a :*: b) opts = liftA2 (:*:) (gFromEnv a opts) (gFromEnv b opts)
+  gFromEnv opts ox = let (oa, ob) = case ox of
+                                             (Just (a :*: b)) -> (Just a, Just b)
+                                             _ -> (Nothing, Nothing) in
+                            liftA2 (:*:) (gFromEnv opts oa) (gFromEnv opts ob)
 
 ------------------------------------------------------------------------------
 -- | Don't absorb meta data
 instance GFromEnv a => GFromEnv (C1 i a) where
-  gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
+  gFromEnv  opts (Just (M1 x))= M1 <$> gFromEnv opts (Just x)
+  gFromEnv  opts            _ = M1 <$> gFromEnv opts Nothing
 
 ------------------------------------------------------------------------------
 -- | Don't absorb meta data
 instance GFromEnv a => GFromEnv (D1 i a) where
-  gFromEnv (M1 x) opts = M1 <$> gFromEnv x opts
+  gFromEnv opts (Just (M1 x)) = M1 <$> gFromEnv opts (Just x)
+  gFromEnv opts             _ = M1 <$> gFromEnv opts Nothing
 
 ------------------------------------------------------------------------------
 -- | Construct a `Parser` from a `selName` and `DefConfig` record field
 instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
-  gFromEnv m@(M1 (K1 def)) opts =
-      M1 . K1 <$> envMaybe (toEnvName opts $ selName m) .!= def
-    where
+  gFromEnv opts ox =
+    let p = case ox of
+               Just (M1 (K1 def)) -> envMaybe envName .!= def
+               _                  -> env envName in
+    M1 . K1 <$> p
+     where
+      envName = toEnvName opts $ selName (SelectorProxy :: SelectorProxy s Proxy ())
+
       toEnvName :: Option -> String -> String
       toEnvName Option{..} xs =
         let name = snake (drop dropPrefixCount xs)
@@ -241,6 +255,8 @@ instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
 
       snake :: String -> String
       snake = map toUpper . snakeCase
+
+data SelectorProxy (s :: Meta) (f :: * -> *) a = SelectorProxy
 
 ------------------------------------------------------------------------------
 -- | Type class for objects which can be converted to a set of
@@ -297,7 +313,7 @@ instance Var a => Var (Maybe a) where
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
 decodeEnv :: FromEnv a => IO (Either String a)
-decodeEnv = evalParser fromEnv
+decodeEnv = evalParser (fromEnv Nothing)
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval (with no failure info)
@@ -306,6 +322,11 @@ decode = fmap eitherToMaybe decodeEnv
   where
     eitherToMaybe (Left _)  = Nothing
     eitherToMaybe (Right x) = Just x
+
+------------------------------------------------------------------------------
+-- | Environment retrieval with default values provided
+decodeWithDefaults :: FromEnv a => a -> IO a
+decodeWithDefaults def = (\(Right x) -> x) <$> evalParser (fromEnv (Just def))
 
 ------------------------------------------------------------------------------
 -- | Catch an IO exception and return it in an Either.

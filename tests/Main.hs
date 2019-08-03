@@ -19,6 +19,22 @@ import           Test.Hspec
 import           Test.QuickCheck
 import           Test.QuickCheck.Instances ()
 import           Test.QuickCheck.Monadic
+
+
+
+------------------------------------------------------------------------------
+data UserInfo = UserInfo {
+      userName :: String
+    , userAge :: Int
+  } deriving (Show, Eq, Generic)
+
+
+-- | Generic instance
+instance FromEnv UserInfo
+
+instance Arbitrary UserInfo where
+  arbitrary = UserInfo <$> arbitrary <*> arbitrary
+
 ------------------------------------------------------------------------------
 data ConnectInfo = ConnectInfo {
       pgHost :: String
@@ -31,6 +47,8 @@ data ConnectInfo = ConnectInfo {
 
 instance DefConfig ConnectInfo where
   defConfig = ConnectInfo "localhost" 5432 "user" "pass" "db"
+
+-- | Generic instance with default values
 instance FromEnv ConnectInfo
 
 instance Arbitrary ConnectInfo where
@@ -60,11 +78,11 @@ instance Show PGConfig where
 -- | FromEnv Instances, supports popular aeson combinators *and* IO
 -- for dealing with connection pools
 instance FromEnv PGConfig where
-  fromEnv = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
-                                      <*> env "PG_PORT"
-                                      <*> env "PG_USER"
-                                      <*> env "PG_PASS"
-                                      <*> env "PG_DB")
+  fromEnv _ = PGConfig <$> (ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
+                                        <*> env "PG_PORT"
+                                        <*> env "PG_USER"
+                                        <*> env "PG_PASS"
+                                        <*> env "PG_DB")
 
 ------------------------------------------------------------------------------
 -- | To Environment Instances
@@ -77,6 +95,7 @@ instance ToEnv PGConfig where
                                , "PG_PASS" .= pgPass
                                , "PG_DB"   .= pgDB
                                ]
+
 
 ------------------------------------------------------------------------------
 -- | Start tests
@@ -140,5 +159,16 @@ main = hspec $ do
                                   , "PG_PASS" .= pgPass
                                   , "PG_DB"   .= pgDB
                                   ]
+                 decodeWithDefaults (defConfig :: ConnectInfo)
+        assert $ res == ci
+  describe "Can use generic FromEnvNoDefault" $
+    it "Isomorphism through setEnvironment and decodeEnv" $ property $
+      \(u::UserInfo) -> monadicIO $ do
+        res <- run $ do
+                 let UserInfo{..} = u
+                 _ <- setEnvironment $
+                          makeEnv [ "USER_NAME" .= (userName ++ "")
+                                  , "USER_AGE" .= userAge
+                                  ]
                  decodeEnv
-        assert $ res == Right ci
+        assert $  if isInfixOf "\NUL" (userName u) then True else res == Right u
