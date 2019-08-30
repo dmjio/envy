@@ -13,10 +13,10 @@ instance DefConfig PGConfig where
   defConfig = PGConfig "localhost" 5432
 
 instance FromEnv PGConfig where
-  fromEnv = fromEnvCustom (Option 7 "PG")
+  fromEnv = gFromEnvCustom (Option 7 "PG")
   -- Generically creates instance for retrieving environment variables (PG_HOST, PG_PORT)
 
 main :: IO ()
 main =
-  print =<< decodeEnv :: IO (Either String PGConfig)
+  print =<< (decodeEnv :: IO (Either String PGConfig))
  -- PGConfig { pgHost = "foobah", pgPort = 5432 }
