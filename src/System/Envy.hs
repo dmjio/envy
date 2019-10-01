@@ -79,6 +79,7 @@ import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Exception
 import           Data.Maybe
+import           Data.Monoid
 import           Data.Char
 import           Data.Time
 import           GHC.Generics
@@ -309,6 +310,10 @@ instance Var a => Var (Maybe a) where
   toVar = maybe "" toVar
   fromVar "" = Nothing
   fromVar  s = Just <$> fromVar s
+
+------------------------------------------------------------------------------
+deriving instance (Var a, Typeable a) => Var (Last a)
+deriving instance (Var a, Typeable a) => Var (First a)
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
