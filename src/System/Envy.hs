@@ -38,8 +38,12 @@
 -- >
 -- > instance FromEnv PGConfig
 -- > -- Generically produces the following body (no implementation needed if using Generics):
--- > -- fromEnv = PGConfig <$> envMaybe "PG_HOST" .!= "localhost"
--- > --                    <*> envMaybe "PG_PORT" .!= 5432
+-- > -- fromEnv Nothing =
+-- > --   PGConfig <$> env "PG_HOST"
+-- > --            <*> env "PG_PORT"
+-- > -- fromEnv (Just def) =
+-- > --   PGConfig <$> envMaybe "PG_HOST" .!= pgHost def
+-- > --            <*> envMaybe "PG_PORT" .!= pgPort def
 -- >
 -- > main :: IO ()
 -- > main =
