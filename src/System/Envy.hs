@@ -68,6 +68,8 @@ module System.Envy
        , envMaybe
        , (.=)
        , (.!=)
+         -- * Utility Types
+       , ReadShowVar (..)
          -- * Generics
        , DefConfig (..)
        , Option (..)
@@ -316,6 +318,14 @@ instance Var a => Var (Maybe a) where
 deriving instance (Var a, Typeable a) => Var (Last a)
 deriving instance (Var a, Typeable a) => Var (First a)
 
+------------------------------------------------------------------------------
+-- | A utility type to use any instance of 'Read' and 'Show' as an instance of
+--   'Var'.
+newtype ReadShowVar a = ReadShowVar { unReadShowVar :: a }
+
+instance (Typeable a, Show a, Read a) => Var (ReadShowVar a) where
+  toVar = show . unReadShowVar
+  fromVar = fmap ReadShowVar . readMaybe
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
 decodeEnv :: FromEnv a => IO (Either String a)
