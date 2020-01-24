@@ -79,6 +79,7 @@ module System.Envy
 import           Control.Applicative
 import           Control.Monad.Except
 import           Control.Exception
+import           Data.Functor.Identity
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Char
@@ -315,6 +316,7 @@ instance Var a => Var (Maybe a) where
 ------------------------------------------------------------------------------
 deriving instance (Var a, Typeable a) => Var (Last a)
 deriving instance (Var a, Typeable a) => Var (First a)
+deriving instance (Var a, Typeable a) => Var (Identity a)
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
