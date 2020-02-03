@@ -80,6 +80,7 @@ module System.Envy
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Monad.Except
+import           Control.Monad.Fail
 import           Control.Exception
 import           Data.Functor.Identity
 import           Data.Maybe
@@ -102,6 +103,9 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 newtype Parser a = Parser { runParser :: ExceptT String IO a }
   deriving ( Functor, Monad, Applicative, MonadError String
            , MonadIO, Alternative, MonadPlus )
+
+instance MonadFail Parser where
+  fail = Parser . throwError
 
 ------------------------------------------------------------------------------
 -- | Variable type, smart constructor for handling environment variables.
