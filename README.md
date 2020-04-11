@@ -130,23 +130,23 @@ main = do
    -- unsetEnvironment (toEnv :: EnvList ConnectInfo)  -- remove when done
 ```
 
-Our parser might also make use a set of an optional default values provided by the user, 
+Our parser might also make use a set of an optional default values provided by the user,
 for dealing with errors when reading from the environment
 
 ```haskell
 instance FromEnv ConnectInfo where
-  fromEnv Nothing = 
+  fromEnv Nothing =
     ConnectInfo <$> envMaybe "PG_HOST" .!= "localhost"
 		<*> env "PG_PORT"
 		<*> env "PG_USER"
 		<*> env "PG_PASS"
 		<*> env "PG_DB"
-        
-  fromEnv (Just def) = 
+
+  fromEnv (Just def) =
     ConnectInfo <$> envMaybe "PG_HOST" .!= (pgHost def)
 		<*> envMaybe "PG_PORT" .!= (pgPort def)
 		<*> env "PG_USER" .!= (pgUser def)
-		<*> env "PG_PASS" .!= (pgPass def) 
+		<*> env "PG_PASS" .!= (pgPass def)
 		<*> env "PG_DB" .!= (pgDB def)
 ```
 
@@ -240,8 +240,8 @@ import System.Envy
 import GHC.Generics
 
 data PGConfig = PGConfig {
-    connectHost :: String -- "PG_HOST"
-  , connectPort :: Int    -- "PG_PORT"
+    pgHost :: String -- "PG_HOST"
+  , pgPort :: Int    -- "PG_PORT"
   } deriving (Generic, Show)
 
 -- All fields will be converted to uppercase
