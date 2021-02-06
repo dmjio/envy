@@ -20,7 +20,7 @@ library
   exposed-modules:      System.Envy
   ghc-options:          -Wall
   hs-source-dirs:       src
-  build-depends:        base         >= 4.7 && < 5
+  build-depends:        base         >= 4.11 && < 5
                       , bytestring   == 0.10.*
                       , containers   >= 0.5 && < 0.7
                       , mtl          == 2.2.*
