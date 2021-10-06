@@ -48,12 +48,13 @@
 --
 module System.Envy
        ( -- * Classes
-         FromEnv (..)
-       , ToEnv   (..)
-       , Var     (..)
-       , EnvList (..)
-       , EnvVar  (..)
-       , Parser  (..)
+         FromEnv    (..)
+       , ToEnv      (..)
+       , Var        (..)
+       , EnvList    (..)
+       , EnvVar     (..)
+       , Parser     (..)
+       , ParseError (..)
         -- * Functions
        , decodeEnv
        , decodeWithDefaults
@@ -70,6 +71,7 @@ module System.Envy
        , (.!=)
          -- * Utility Types
        , ReadShowVar (..)
+       , (.?=)
          -- * Generics
        , DefConfig (..)
        , Option (..)
@@ -85,27 +87,44 @@ import           Control.Exception
 import           Data.Functor.Identity
 import           Data.Maybe
 import           Data.Monoid
+import qualified Data.Semigroup as S
 import           Data.Char
 import           Data.Time
 import           GHC.Generics
 import           Data.Typeable
 import           System.Environment.Blank
-import           Text.Read (readMaybe)
+import           Text.Read (readEither)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import           Data.Text (Text)
+import           Data.Void
 import           Data.Word
 import           Data.Int
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 ------------------------------------------------------------------------------
+data ParseError =
+    ParseFailed
+      !String {- ^ Variable name -}
+      !TypeRep {- ^ Type tried to parse as -}
+      !String {- ^ Error by 'readEither' -}
+  | VariableNotFound !String {- ^ Variable name -}
+  | Fail !String
+  deriving (Eq, Show)
+
+instance S.Semigroup ParseError where
+  a <> _ = a
+
+instance Monoid ParseError where
+  mempty = ParseFailed "<NONE>" (typeRep (Proxy :: Proxy Void)) "mempty"
+
 -- | Parser Monad for environment variable retrieval
-newtype Parser a = Parser { runParser :: ExceptT String IO a }
-  deriving ( Functor, Monad, Applicative, MonadError String
+newtype Parser a = Parser { runParser :: ExceptT ParseError IO a }
+  deriving ( Functor, Monad, Applicative, MonadError ParseError
            , MonadIO, Alternative, MonadPlus )
 
 instance MonadFail Parser where
-  fail = Parser . throwError
+  fail = Parser . throwError . Fail
 
 ------------------------------------------------------------------------------
 -- | Variable type, smart constructor for handling environment variables.
@@ -118,16 +137,11 @@ data EnvVar = EnvVar {
   deriving (Show, Eq)
 
 ------------------------------------------------------------------------------
--- | Executes `Parser`
-evalParser :: Parser a -> IO (Either String a)
-evalParser = runExceptT . runParser
-
-------------------------------------------------------------------------------
 -- | For use with Generics, no `FromEnv` typeclass necessary
 --
 -- > getPgConfig :: IO (Either String ConnectInfo)
 -- > getPgConfig = runEnv $ gFromEnvCustom defOption
-runEnv :: Parser a -> IO (Either String a)
+runEnv :: Parser a -> IO (Either ParseError a)
 runEnv = runExceptT . runParser
 
 ------------------------------------------------------------------------------
@@ -139,31 +153,41 @@ env :: Var a
 env key = do
   result <- liftIO (getEnv key)
   case result of
-    Nothing -> throwError $ "Variable not found for: " ++ key
+    Nothing -> throwError $ VariableNotFound key
     Just dv ->
       case fromVar dv of
-        Nothing -> throwError $ ("Parse failure: could not parse variable "
-                                 ++ show key ++ " into type "
-                                 ++ show (typeOf dv))
-        Just x -> return x
+        Left emsg ->
+          throwError $ ParseFailed key (typeOf dv) emsg
+        Right x -> return x
 
 ------------------------------------------------------------------------------
 -- | Environment variable getter returning `Maybe`
+-- TODO deprecate?
 envMaybe :: Var a
          => String           -- ^ Key to look up.
          -> Parser (Maybe a) -- ^ Return `Nothing` if variable isn't set.
-envMaybe key = do
-  val <- liftIO (getEnv key)
-  return $ case val of
-   Nothing -> Nothing
-   Just x -> fromVar x
+envMaybe key = (Just <$> env key) `catchError` h
+ where
+  h (VariableNotFound _) = return Nothing
+  h other = throwError other
 
 ------------------------------------------------------------------------------
 -- | For use with `envMaybe` for providing default arguments.
+-- TODO deprecate?
 (.!=) :: Parser (Maybe a) -- ^ Parser that might fail.
       -> a                -- ^ Value to return if the parser fails.
       -> Parser a         -- ^ Parser that returns the default on failure.
 (.!=) parser def  = fromMaybe def <$> parser
+
+------------------------------------------------------------------------------
+-- | For use with `env` for providing default arguments.
+(.?=) :: Parser a
+      -> a        -- ^ Value to return if the environment variable is not found.
+      -> Parser a -- ^ Parser that returns the default if the environment variable is not found.
+(.?=) parser def = parser `catchError` h
+ where
+  h (VariableNotFound _) = return def
+  h other = throwError other
 
 ------------------------------------------------------------------------------
 -- | Infix environment variable setter
@@ -291,32 +315,33 @@ class Typeable a => Var a where
   -- | Convert a value into an environment variable.
   toVar   :: a -> String
   -- | Parse an environment variable.
-  fromVar :: String -> Maybe a
+  --   The error message is (usually) produced by 'readEither'
+  fromVar :: String -> Either String a
 
 ------------------------------------------------------------------------------
-instance Var Text where toVar = T.unpack; fromVar = Just . T.pack
-instance Var TL.Text where toVar = TL.unpack; fromVar = Just . TL.pack
-instance Var BL8.ByteString where toVar = BL8.unpack; fromVar = Just . BL8.pack
-instance Var B8.ByteString where toVar = B8.unpack; fromVar = Just . B8.pack
-instance Var Int where toVar = show; fromVar = readMaybe
-instance Var Int8 where toVar = show; fromVar = readMaybe
-instance Var Int16 where toVar = show; fromVar = readMaybe
-instance Var Int32 where toVar = show; fromVar = readMaybe
-instance Var Int64 where toVar = show; fromVar = readMaybe
-instance Var Integer where toVar = show; fromVar = readMaybe
-instance Var UTCTime where toVar = show; fromVar = readMaybe
-instance Var Day where toVar = show; fromVar = readMaybe
-instance Var Word8 where toVar = show; fromVar = readMaybe
-instance Var Bool where toVar = show; fromVar = readMaybe
-instance Var Double where toVar = show; fromVar = readMaybe
-instance Var Word16 where toVar = show; fromVar = readMaybe
-instance Var Word32 where toVar = show; fromVar = readMaybe
-instance Var Word64 where toVar = show; fromVar = readMaybe
-instance Var String where toVar = id; fromVar = Just
-instance Var () where toVar = const "()"; fromVar = const $ Just ()
+instance Var Text where toVar = T.unpack; fromVar = Right . T.pack
+instance Var TL.Text where toVar = TL.unpack; fromVar = Right . TL.pack
+instance Var BL8.ByteString where toVar = BL8.unpack; fromVar = Right . BL8.pack
+instance Var B8.ByteString where toVar = B8.unpack; fromVar = Right . B8.pack
+instance Var Int where toVar = show; fromVar = readEither
+instance Var Int8 where toVar = show; fromVar = readEither
+instance Var Int16 where toVar = show; fromVar = readEither
+instance Var Int32 where toVar = show; fromVar = readEither
+instance Var Int64 where toVar = show; fromVar = readEither
+instance Var Integer where toVar = show; fromVar = readEither
+instance Var UTCTime where toVar = show; fromVar = readEither
+instance Var Day where toVar = show; fromVar = readEither
+instance Var Word8 where toVar = show; fromVar = readEither
+instance Var Bool where toVar = show; fromVar = readEither
+instance Var Double where toVar = show; fromVar = readEither
+instance Var Word16 where toVar = show; fromVar = readEither
+instance Var Word32 where toVar = show; fromVar = readEither
+instance Var Word64 where toVar = show; fromVar = readEither
+instance Var String where toVar = id; fromVar = Right
+instance Var () where toVar = const "()"; fromVar = const $ Right ()
 instance Var a => Var (Maybe a) where
   toVar = maybe "" toVar
-  fromVar "" = Nothing
+  fromVar "" = Left "empty value"
   fromVar  s = Just <$> fromVar s
 
 ------------------------------------------------------------------------------
@@ -331,11 +356,11 @@ newtype ReadShowVar a = ReadShowVar { unReadShowVar :: a }
 
 instance (Typeable a, Show a, Read a) => Var (ReadShowVar a) where
   toVar = show . unReadShowVar
-  fromVar = fmap ReadShowVar . readMaybe
+  fromVar = fmap ReadShowVar . readEither
 ------------------------------------------------------------------------------
 -- | Environment retrieval with failure info
-decodeEnv :: FromEnv a => IO (Either String a)
-decodeEnv = evalParser (fromEnv Nothing)
+decodeEnv :: FromEnv a => IO (Either ParseError a)
+decodeEnv = runEnv (fromEnv Nothing)
 
 ------------------------------------------------------------------------------
 -- | Environment retrieval (with no failure info)
@@ -348,7 +373,7 @@ decode = fmap eitherToMaybe decodeEnv
 ------------------------------------------------------------------------------
 -- | Environment retrieval with default values provided
 decodeWithDefaults :: FromEnv a => a -> IO a
-decodeWithDefaults def = (\(Right x) -> x) <$> evalParser (fromEnv (Just def))
+decodeWithDefaults def = (\(Right x) -> x) <$> runEnv (fromEnv (Just def))
 
 ------------------------------------------------------------------------------
 -- | Catch an IO exception and return it in an Either.
