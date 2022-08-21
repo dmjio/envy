@@ -1,4 +1,4 @@
-{ compiler ? "ghc865" }:
+{ compiler ? "ghc902" }:
 let
   config = {
     packageOverrides = pkgs: with pkgs.haskell.lib; {
@@ -6,7 +6,7 @@ let
         packages = pkgs.haskell.packages // {
           ${compiler} = pkgs.haskell.packages.${compiler}.override {
             overrides = self: super: {
-              envy = buildStrictly (self.callCabal2nix "envy" ./. {});
+              envy = self.callCabal2nix "envy" ./. {};
             };
           };
         };
