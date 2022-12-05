@@ -80,8 +80,9 @@ module System.Envy
        ) where
 ------------------------------------------------------------------------------
 import           Control.Applicative
-import           Control.Monad.Except
-import           Control.Monad.Fail
+import           Control.Monad (MonadPlus)
+import           Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
+import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Control.Exception
 import           Data.Functor.Identity
 import           Data.Maybe
