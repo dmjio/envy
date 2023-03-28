@@ -1,5 +1,5 @@
 name:                envy
-version:             2.1.1.0
+version:             2.1.2.0
 synopsis:            An environmentally friendly way to deal with environment variables
 license:             BSD3
 license-file:        LICENSE
