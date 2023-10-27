@@ -193,9 +193,9 @@ defConfig :: PGConfig
 defConfig = PGConfig "localhost" 5432
 
 main :: IO ()
-main =
+main = do
   _ <- setEnv "PG_HOST" "customURL" True
-  print =<< decodeWithDefaults defConfig :: IO (Either String PGConfig)
+  print =<< decodeWithDefaults defConfig
  -- > PGConfig { pgHost = "customURL", pgPort = 5432 }
 ```
 
