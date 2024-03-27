@@ -88,6 +88,7 @@ import           Data.Maybe
 import           Data.Monoid
 import           Data.Char
 import           Data.Time
+import           Data.Kind
 import           GHC.Generics
 import           Data.Typeable
 import           System.Environment.Blank
@@ -266,7 +267,7 @@ instance (Selector s, Var a) => GFromEnv (S1 s (K1 i a)) where
       snake :: String -> String
       snake = map toUpper . snakeCase
 
-data SelectorProxy (s :: Meta) (f :: * -> *) a = SelectorProxy
+data SelectorProxy (s :: Meta) (f :: Type -> Type) a = SelectorProxy
 
 ------------------------------------------------------------------------------
 -- | Type class for objects which can be converted to a set of
@@ -349,7 +350,7 @@ decode = fmap eitherToMaybe decodeEnv
 ------------------------------------------------------------------------------
 -- | Environment retrieval with default values provided
 decodeWithDefaults :: FromEnv a => a -> IO a
-decodeWithDefaults def = (\(Right x) -> x) <$> evalParser (fromEnv (Just def))
+decodeWithDefaults def = either error pure =<< evalParser (fromEnv (Just def))
 
 ------------------------------------------------------------------------------
 -- | Catch an IO exception and return it in an Either.
