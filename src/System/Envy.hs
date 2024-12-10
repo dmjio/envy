@@ -15,7 +15,7 @@
 -- |
 -- Module      : System.Envy
 -- Copyright   : (c) David Johnson 2015
--- Maintainer  : djohnson.m@gmail.com
+-- Maintainer  : code@dmj.io
 -- Stability   : experimental
 -- Portability : POSIX
 --

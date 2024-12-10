@@ -1,11 +1,11 @@
 name:                envy
-version:             2.1.3.0
+version:             2.1.4.0
 synopsis:            An environmentally friendly way to deal with environment variables
 license:             BSD3
 license-file:        LICENSE
 author:              David Johnson, Tim Adams, Eric Mertens, Nicolas Rolland
-maintainer:          djohnson.m@gmail.com
-copyright:           David Johnson (c) 2015-2020
+maintainer:          code@dmj.io
+copyright:           David Johnson (c) 2015-2025
 category:            System
 build-type:          Simple
 cabal-version:       >=1.10
@@ -22,7 +22,7 @@ library
   hs-source-dirs:       src
   build-depends:        base         >= 4.11 && < 5
                       , bytestring   >= 0.10 && < 0.13
-                      , containers   >= 0.5 && < 0.7
+                      , containers   >= 0.5 && < 0.8
                       , mtl          == 2.2.* || == 2.3.*
                       , text         == 1.2.* || >= 2.0 && <2.2
                       , time         >= 1.5 && < 2.0
