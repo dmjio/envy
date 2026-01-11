@@ -1,8 +1,0 @@
-language: nix
-
-before_install:
- - nix-channel --list
- - nix-channel --update
-
-script:
- - nix-build

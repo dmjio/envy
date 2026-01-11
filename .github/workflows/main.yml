@@ -1,0 +1,30 @@
+name: Envy CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+     - uses: nixbuild/nix-quick-install-action@v34
+     - uses: actions/checkout@v3.5.3
+     - name: Cancel Previous Runs
+       uses: styfle/cancel-workflow-action@0.9.1
+       with:
+         access_token: ${{ github.token }}
+     - uses: cachix/cachix-action@v16
+       with:
+         name: haskell-miso-cachix
+         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+     - name: Nix channel update
+       run: nix-channel --add https://nixos.org/channels/nixpkgs-unstable && nix-channel --update
+
+     - name: Nix build
+       run: nix-build -A envy
