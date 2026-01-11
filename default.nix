@@ -1,18 +1,11 @@
-{ compiler ? "ghc902" }:
 let
-  config = {
-    packageOverrides = pkgs: with pkgs.haskell.lib; {
-      haskell = pkgs.haskell // {
-        packages = pkgs.haskell.packages // {
-          ${compiler} = pkgs.haskell.packages.${compiler}.override {
-            overrides = self: super: {
-              envy = self.callCabal2nix "envy" ./. {};
-            };
-          };
-        };
-      };
-    };
+  pkgs = import <nixpkgs> {};
+  overrides = self: super: {
+    envy = self.callCabal2nix "envy" ./. {};        
   };
+  hPkgs = pkgs.haskellPackages.override { inherit overrides; };
 in
-  with (import <nixpkgs> { inherit config; }).haskell.packages.${compiler};
-  envy
+{
+  inherit pkgs;
+  inherit (hPkgs) envy;
+}
