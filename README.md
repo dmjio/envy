@@ -124,9 +124,11 @@ instance ToEnv ConnectInfo where
 -- | Example
 main :: IO ()
 main = do
-   setEnvironment (toEnv :: EnvList ConnectInfo)
-   print =<< do decodeEnv :: IO (Either String ConnectInfo)
-   -- unsetEnvironment (toEnv :: EnvList ConnectInfo)  -- remove when done
+   let config = ConnectInfo "localhost" 5432 "example-user" "example-password" "example-db"
+   _ <- setEnvironment (toEnv config)
+   print =<< (decodeEnv :: IO (Either String ConnectInfo))
+   _ <- unsetEnvironment (toEnv config)
+   pure ()
 ```
 
 Our parser might also make use a set of an optional default values provided by the user,
@@ -144,9 +146,9 @@ instance FromEnv ConnectInfo where
   fromEnv (Just def) =
     ConnectInfo <$> envMaybe "PG_HOST" .!= (pgHost def)
 		<*> envMaybe "PG_PORT" .!= (pgPort def)
-		<*> env "PG_USER" .!= (pgUser def)
-		<*> env "PG_PASS" .!= (pgPass def)
-		<*> env "PG_DB" .!= (pgDB def)
+		<*> envMaybe "PG_USER" .!= (pgUser def)
+		<*> envMaybe "PG_PASS" .!= (pgPass def)
+		<*> envMaybe "PG_DB" .!= (pgDB def)
 ```
 
 
@@ -188,13 +190,13 @@ If the variables are not found in the environment, the parser will currently fai
 The user can decide to provide a default value, whose fields will be used by the generic instance, if retrieving them from the environment fails.
 
 ```haskell
-defConfig :: PGConfig
-defConfig = PGConfig "localhost" 5432
+defaultPGConfig :: PGConfig
+defaultPGConfig = PGConfig "localhost" 5432
 
 main :: IO ()
 main = do
   _ <- setEnv "PG_HOST" "customURL" True
-  print =<< decodeWithDefaults defConfig
+  print =<< decodeWithDefaults defaultPGConfig
  -- > PGConfig { pgHost = "customURL", pgPort = 5432 }
 ```
 
@@ -206,10 +208,11 @@ module Main where
 
 import System.Envy
 import GHC.Generics
+import System.Environment.Blank (setEnv)
 
 data PGConfig = PGConfig {
-    connectHost :: String -- "PG_HOST"
-  , connectPort :: Int    -- "PG_PORT"
+    connectHost :: String -- "CUSTOM_HOST"
+  , connectPort :: Int    -- "CUSTOM_PORT"
   } deriving (Generic, Show)
 
 instance DefConfig PGConfig where
@@ -223,10 +226,10 @@ instance FromEnv PGConfig where
 		  }
 
 main :: IO ()
-main =
+main = do
   _ <- setEnv "CUSTOM_HOST" "customUrl" True
-  print =<< do decodeEnv :: IO (Either String PGConfig)
- -- PGConfig { pgHost = "customUrl", pgPort = 5432 }
+  print =<< decodeWithDefaults (defConfig :: PGConfig)
+ -- PGConfig { connectHost = "customUrl", connectPort = 5432 }
 ```
 
 It's also possible to avoid typeclasses altogether using `runEnv` with `gFromEnvCustom`.

@@ -31,19 +31,20 @@
 -- > , pgPort :: Int    -- "PG_PORT"
 -- > } deriving (Generic, Show)
 -- >
--- > -- Default instance used if environment variable doesn't exist
+-- > -- Defaults passed explicitly to decodeWithDefaults
 -- > instance DefConfig PGConfig where
 -- >   defConfig = PGConfig "localhost" 5432
 -- >
 -- > instance FromEnv PGConfig
 -- > -- Generically produces the following body (no implementation needed if using Generics):
--- > -- fromEnv = PGConfig <$> envMaybe "PG_HOST" .!= "localhost"
--- > --                    <*> envMaybe "PG_PORT" .!= 5432
+-- > -- fromEnv Nothing = PGConfig <$> env "PG_HOST" <*> env "PG_PORT"
+-- > -- fromEnv (Just def) = PGConfig <$> envMaybe "PG_HOST" .!= pgHost def
+-- > --                              <*> envMaybe "PG_PORT" .!= pgPort def
 -- >
 -- > main :: IO ()
 -- > main =
--- >   print =<< do decodeEnv :: IO (Either String PGConfig)
--- >  -- PGConfig { pgHost = "custom-pg-url", pgPort = 5432 }
+-- >   print =<< decodeWithDefaults (defConfig :: PGConfig)
+-- >  -- PGConfig { pgHost = "localhost", pgPort = 5432 } (with no PG_* variables)
 --
 module System.Envy
        ( -- * Classes
